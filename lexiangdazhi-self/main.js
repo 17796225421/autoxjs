@@ -8,8 +8,14 @@
 // startMonitor(id("m7g").indexInParent(3).depth(12), "重新进入小程序", 1000);
 
 let { safeClick } = require("../utils/clickUtils.js");
+let { closeApp, openMiniProgram } = require("../utils/app.js");
 
 loopRunner(重进小程序, 10, 10000);
+
+// closeApp("微信");
+
+// 调用打开小程序函数
+// openMiniProgram("乐享大智");
 
 function 重进小程序() {
     safeClick(desc("更多"), "更多");
@@ -24,17 +30,17 @@ function 重进小程序() {
  */
 function loopRunner(taskFunction, loopCount, waitTime) {
     log(`开始循环，共循环 ${loopCount} 次`);
-    
+
     for (let i = 1; i <= loopCount; i++) {
         log(`第 ${i} 次开始执行`);
-        
+
         // 执行传入的具体任务
         taskFunction();
-        
+
         // 本次循环结束后等待
         log(`第 ${i} 次循环结束，等待 ${waitTime} 毫秒`);
         sleep(waitTime);
     }
-    
+
     log("循环执行结束");
 }
