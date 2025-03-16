@@ -22,7 +22,8 @@
   "packageName": "org.example.my_project",
   "permissionConfig": {
     "requestListOnStartup": [
-      "android.permission.WRITE_EXTERNAL_STORAGE"
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.FOREGROUND_SERVICE"
     ]
   },
   "scripts": {},
