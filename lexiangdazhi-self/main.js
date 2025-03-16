@@ -10,8 +10,8 @@
 // let { findTextByOcr } = require("../utils/ocr.js");
 // let uiObjects = findTextByOcr("乐享大智");
 
-let { safeClick } = require("../utils/clickUtils.js");
-let { closeApp, openMiniProgram } = require("../utils/app.js");
+let { safeClick } = require("./utils/clickUtils.js");
+let { closeApp, openMiniProgram } = require("./utils/app.js");
 
 global.hasCapturePermission = false;
 

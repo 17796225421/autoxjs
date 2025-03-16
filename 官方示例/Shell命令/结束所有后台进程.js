@@ -1,1 +1,0 @@
-log(shell("am kill-all", true));
