@@ -73,11 +73,11 @@
 // let { findTextByOcr } = require("./utils/ocr.js");
 // let uiObjects = findTextByOcr("乐享大智");
 
-let { safeClick } = require("./utils/clickUtils.js");
-let { closeApp, openMiniProgram } = require("./utils/app.js");
-let { findTextByOcr } = require("./utils/ocr.js");
-let { safeInput } = require("./utils/inputUtils.js");
-let { getPhoneNumber, getVerificationCode } = require("./utils/smsService.js");
+let { safeClick } = require("../testgptvision/utils/clickUtils.js");
+let { closeApp, openMiniProgram } = require("../testgptvision/utils/app.js");
+let { findTextByOcr } = require("../testgptvision/utils/ocr.js");
+let { safeInput } = require("../testgptvision/utils/inputUtils.js");
+let { getPhoneNumber, getVerificationCode } = require("../testgptvision/utils/smsService.js");
 
 global.hasCapturePermission = false;
 
