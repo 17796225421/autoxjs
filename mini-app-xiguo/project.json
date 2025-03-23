@@ -12,14 +12,14 @@
     "stableMode": false
   },
   "main": "main.js",
-  "name": "小程序广告",
+  "name": "小程序西瓜",
   "optimization": {
     "obfuscateComponents": false,
     "removeAccessibilityService": false,
     "removeOpenCv": false,
     "unusedResources": false
   },
-  "packageName": "org.example.mini_app_self",
+  "packageName": "org.example.mini_app_xiguo",
   "permissionConfig": {
     "requestListOnStartup": [
       "android.permission.WRITE_EXTERNAL_STORAGE",

@@ -38,7 +38,7 @@
 //         // 用 while(isRunning) 来代替 while(true)，以便实现可控停止
 //         while (isRunning) {
 //             try {
-//                 mainLogic(); 
+//                 重复评论();
 //             } catch (e) {
 //                 console.error("【主脚本捕获到异常】:", e);
 //             }
@@ -69,18 +69,15 @@
 
 
 // let { startMonitor } = require("./utils/monitor.js");
-// startMonitor(textMatches(/(结束运行|强行停止)/), "结束运行");
+// startMonitor(text("发送"));
 // let { findTextByOcr } = require("./utils/ocr.js");
 // let uiObjects = findTextByOcr("乐享大智");
 
-let { safeClick } = require("./utils/clickUtils.js");
-let { closeApp, openMiniProgram } = require("./utils/app.js");
-let { findTextByOcr } = require("./utils/ocr.js");
-let { safeInput } = require("./utils/inputUtils.js");
-let { getPhoneNumber, getVerificationCode } = require("./utils/smsService.js");
-
+let { safeClick } = require("../quyou/utils/clickUtils.js");
+let { openApp, closeApp, openMiniProgram } = require("../quyou/utils/app.js");
+let { findTextByOcr } = require("../quyou/utils/ocr.js");
+let { safeInput } = require("../quyou/utils/inputUtils.js");
 global.hasCapturePermission = false;
-
 /**
  * 循环执行指定任务
  * @param {Function} taskFunction 需要执行的函数（如果有多条任务逻辑，可自行封装成一个函数再传进来）
@@ -107,33 +104,28 @@ function loopRunner(taskFunction, loopCount, waitTime) {
     log(`【${functionName}】循环执行结束`);
 }
 
-// function mainLogic() {
-//     loopRunner(重启小程序, 100000, 10000);
-// }
+mainLogic();
 
-// function 重进小程序() {
-//     safeClick(id("gk").findOnce(0).child(0), "更多");
-//     safeClick(id("m7g").indexInParent(3).depth(12).findOnce(1), "重新进入小程序");
-// }
-
-// function 重启小程序() {
-//     closeApp("微信"); 
-//     openMiniProgram("乐享大智");
-//     loopRunner(重进小程序, 10, 10000);
-// }
-注册账号();
-function 注册账号() {
-    safeClick(text("立即注册").findOnce(0), "立即注册");
-    let phone = getPhoneNumber();
-    safeInput(text("请输入手机号").findOnce(0), phone, "请输入手机号");
-    safeClick(text("获取验证码").findOnce(0), "获取验证码");
-    let code = getVerificationCode(phone);
-    safeInput(text("请输入验证码").findOnce(0), code, "请输入验证码");
-    safeInput(id("et_password").findOnce(0), "qwer1234", "请输入密码");
-    safeInput(id("et_password_02").findOnce(0), "qwer1234", "请确认登录密码");
-    safeClick(text("注册").findOnce(0), "注册");
+function mainLogic() {
+    loopRunner(重启西瓜, 100000, 10000);
 }
 
+function 重复评论() {
+    safeClick(text("游戏").findOnce(0), "游戏tab", 5000);
+    safeClick(id("gpl").findOnce(0), "评论");
+    safeClick(descContains("发送图片").findOnce(0), "发送图片");
+    safeClick(id("cwn").findOnce(0), "图片");
+    safeClick(text("完成").findOnce(0), "完成");
+    safeInput(className("android.widget.EditText").findOnce(0), "这个好难QaQ，能不能教教", "评论框");
+    safeClick(text("发送").findOnce(0), "发生");
+    back();
+}
 
-
+function 重启西瓜() {
+    closeApp("西瓜视频");
+    openApp("西瓜视频");
+    safeClick(text("游戏").findOnce(0), "游戏tab", 5000);
+    loopRunner(重复评论, 10, 10000);
+    safeInput(className("android.widget.EditText").findOnce(0), miniProgramName, "搜索框");
+}
 

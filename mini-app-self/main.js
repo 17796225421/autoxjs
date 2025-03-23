@@ -5,7 +5,7 @@
  */
 
 "ui";
-require("./utils/log.js") ;
+require("../quyou/utils/log.js") ;
 initLog();
 
 // 布局：两个按钮
@@ -66,31 +66,17 @@ ui.btn_stop.on("click", () => {
 
     toast("脚本已停止");
 });
-// let { startMonitor } = require("../utils/monitor.js");
-// startMonitor(id("gk"), "测试", 1000);
 
-// let { findTextByOcr } = require("../utils/ocr.js");
+
+// let { startMonitor } = require("./utils/monitor.js");
+// startMonitor(textMatches(/(结束运行|强行停止)/), "结束运行");
+// let { findTextByOcr } = require("./utils/ocr.js");
 // let uiObjects = findTextByOcr("乐享大智");
 
-let { safeClick } = require("./utils/clickUtils.js");
-let { closeApp, openMiniProgram } = require("./utils/app.js");
+let { safeClick } = require("../quyou/utils/clickUtils.js");
+let { closeApp, openMiniProgram } = require("../quyou/utils/app.js");
 
 global.hasCapturePermission = false;
-
-function mainLogic() {
-    loopRunner(重启小程序, 100000, 10000);
-}
-
-function 重进小程序() {
-    safeClick(id("gk").findOnce(0).child(0), "更多");
-    safeClick(id("m7g").indexInParent(3).depth(12).findOnce(1), "重新进入小程序");
-}
-
-function 重启小程序() {
-    closeApp("微信"); 
-    openMiniProgram("乐享大智");
-    loopRunner(重进小程序, 10, 10000);
-}
 
 /**
  * 循环执行指定任务
@@ -117,3 +103,19 @@ function loopRunner(taskFunction, loopCount, waitTime) {
 
     log(`【${functionName}】循环执行结束`);
 }
+
+function mainLogic() {
+    loopRunner(重启小程序, 100000, 10000);
+}
+
+function 重进小程序() {
+    safeClick(id("gk").findOnce(0).child(0), "更多");
+    safeClick(id("m7g").indexInParent(3).depth(12).findOnce(1), "重新进入小程序");
+}
+
+function 重启小程序() {
+    closeApp("微信"); 
+    openMiniProgram("乐享大智");
+    loopRunner(重进小程序, 10, 10000);
+}
+

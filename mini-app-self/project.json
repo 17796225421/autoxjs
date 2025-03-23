@@ -12,14 +12,14 @@
     "stableMode": false
   },
   "main": "main.js",
-  "name": "My Project",
+  "name": "小程序广告",
   "optimization": {
     "obfuscateComponents": false,
     "removeAccessibilityService": false,
     "removeOpenCv": false,
     "unusedResources": false
   },
-  "packageName": "org.example.my_project",
+  "packageName": "org.example.mini_app_self",
   "permissionConfig": {
     "requestListOnStartup": [
       "android.permission.WRITE_EXTERNAL_STORAGE",

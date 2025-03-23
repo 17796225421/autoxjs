@@ -2,7 +2,7 @@
  * app.js
  */
 let { safeClick } = require("./clickUtils.js");
-let { safeInput } = require("./inputUtils.js"); 
+let { safeInput } = require("./inputUtils.js");
 let { findTextByOcr } = require("./ocr.js");
 
 /**
@@ -40,8 +40,8 @@ function openMiniProgram(miniProgramName) {
     safeClick(id("meb").findOnce(0), "搜索");
 
     safeInput(className("android.widget.EditText").findOnce(0), miniProgramName, "搜索框");
-   
-    safeClick(findTextByOcr("乐享大智")[1], "小程序入口");
+
+    safeClick(findTextByOcr("乐享大智")[1], "小程序入口", 10000);
 }
 
 function closeApp(appNameOrPackage) {
@@ -62,8 +62,8 @@ function closeApp(appNameOrPackage) {
     app.openAppSetting(packageName);
     sleep(5000);
 
-    safeClick(text("结束运行").findOnce(0), "结束运行");
-    safeClick(text("确定").findOnce(0), "确定");
+    safeClick(textMatches(/(结束运行|强行停止)/).findOnce(0), "结束运行");
+    safeClick(textMatches(/(确定|强行停止)/).findOnce(0), "确定");
     log("关闭完成，应用名或包名: " + appNameOrPackage);
 }
 
