@@ -11,7 +11,7 @@
     "splashText": "Powered by Auto.js Pro",
     "stableMode": false
   },
-  "main": "main.js",
+  "main": "ui.js",
   "name": "定时任务",
   "optimization": {
     "obfuscateComponents": false,
