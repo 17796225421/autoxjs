@@ -40,11 +40,11 @@ ui.btn_start.on("click", () => {
             try {
                 mainLogic(); 
             } catch (e) {
-                console.error("【主脚本捕获到异常】:", e);
+                log("【主脚本捕获到异常】:", e);
             }
         }
         // 整个循环结束后
-        console.log("脚本已停止运行");
+        log("脚本已停止运行");
     });
 });
 

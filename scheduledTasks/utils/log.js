@@ -155,7 +155,7 @@
      */
     function log(msg) {
         if (!floatyWindow || !logTextView) {
-            console.warn("浮窗未初始化或已关闭，无法输出日志。");
+("浮窗未初始化或已关闭，无法输出日志。");
             return;
         }
 

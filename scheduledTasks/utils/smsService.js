@@ -41,7 +41,7 @@ function getPhoneNumber(retryCount) {
                 log(`[smsService] 第 ${i + 1} 次获取手机号失败: code=${result ? result.code : "未知"}, msg=${result ? result.msg : "未知"}`);
             }
         } catch (e) {
-            console.error(`[smsService] 第 ${i + 1} 次获取手机号时发生异常:`, e);
+            log(`[smsService] 第 ${i + 1} 次获取手机号时发生异常:`, e);
         }
 
         // 每次失败后等待 3 秒再重试
@@ -77,7 +77,7 @@ function getVerificationCode(phone, retryCount) {
                 log(`[smsService] 第 ${i + 1} 次获取验证码未成功: ${result ? result.msg : "未知错误"}`);
             }
         } catch (e) {
-            console.error(`[smsService] 第 ${i + 1} 次获取验证码时发生异常:`, e);
+            log(`[smsService] 第 ${i + 1} 次获取验证码时发生异常:`, e);
         }
 
         // 每次轮询后停顿 3 秒再重试，可根据业务需求调整
@@ -104,10 +104,10 @@ function loginIfNeeded() {
             config.token = result.token;
             log("[smsService] 登录成功，获得 token = " + config.token);
         } else {
-            console.error(`[smsService] 登录失败: code=${result ? result.code : "未知"}, msg=${result ? result.msg : "未知"}`);
+            log(`[smsService] 登录失败: code=${result ? result.code : "未知"}, msg=${result ? result.msg : "未知"}`);
         }
     } catch (e) {
-        console.error("[smsService] 登录获取 token 时发生异常:", e);
+        log("[smsService] 登录获取 token 时发生异常:", e);
     }
 }
 

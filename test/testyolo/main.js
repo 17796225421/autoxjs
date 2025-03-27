@@ -254,7 +254,7 @@ function TouchController (buttonWindow, handleClick, handleDown, handleUp) {
             break;
         }
       } catch (e) {
-        console.error('异常' + e)
+        log('异常' + e)
       }
       return true;
     })
