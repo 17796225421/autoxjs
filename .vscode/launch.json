@@ -6,6 +6,13 @@
             "stopOnEntry": true,
             "device": "e3514895db9a664d",
             "name": "[Auto.js Pro调试]HUAWEI VTR-AL00 e3514895db9a664d"
+        },
+        {
+            "type": "autojs",
+            "request": "launch",
+            "stopOnEntry": true,
+            "device": "ac6a193c5ea967c0",
+            "name": "[Auto.js Pro调试]Redmi 24122RKC7C ac6a193c5ea967c0"
         }
     ]
 
