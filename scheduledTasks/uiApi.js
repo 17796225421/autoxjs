@@ -1,10 +1,7 @@
-// uiApi.js
 let scheduler = require("./scheduler.js");
 
 /**
- * 你之前使用的是 basePath = files.cwd() + "/tasks"
- * 这里可以继续使用，但请确认你的脚本目录
- * 如果你在项目里就是放在 /scripts 或 /tasks 里，也可以。
+ * 这里假设你在项目同级目录下有个 tasks/ 文件夹，专门放可选脚本
  */
 const basePath = files.cwd() + "/tasks";
 
@@ -17,8 +14,7 @@ function getLocalJsFiles() {
         files.createWithDirs(basePath);
     }
     let list = files.listDir(basePath, function (name) {
-        return name.endsWith(".js")
-            && files.isFile(files.join(basePath, name));
+        return name.endsWith(".js") && files.isFile(files.join(basePath, name));
     });
     return list;
 }

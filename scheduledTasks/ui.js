@@ -5,7 +5,7 @@
  */
 
 "ui";
-require("./utils/log.js");
+require("./utils/log.js");  // 你的自定义日志模块，如果没有可去掉
 initLog();
 
 // 关键：先初始化调度器
@@ -28,6 +28,7 @@ let localJsFiles = getLocalJsFiles();   // 本地可添加的脚本列表
 let allTasks = fetchAllTasks();         // 当前已有的全部定时任务
 log("allTasks");
 log(allTasks);
+
 /**
  * 供 UI 下拉展示的任务信息
  * 格式： "[类型] => 路径"
@@ -37,9 +38,11 @@ function getTaskDisplayName(task) {
     let fileName = task.scriptPath.split("/").pop(); // 只显示文件名
     return `[${typeLabel}] ${fileName}`;
 }
+
 let taskEntries = allTasks.map(getTaskDisplayName);
 log("taskEntries");
 log(taskEntries);
+
 // =======================================
 // 2. 布局
 // =======================================
