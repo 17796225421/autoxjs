@@ -10,7 +10,7 @@ importClass(android.net.Uri);
  * 这里用一个全局变量缓存 scheduler 单例，防止重复加载
  */
 if (!global.__schedulerInstance) {
-    (function() {
+    (function () {
 
         const EXTERNAL_DIR = context.getExternalFilesDir(null).getAbsolutePath();
         const TASKS_FILE_PATH = files.join(EXTERNAL_DIR, "tasks.json");
@@ -88,12 +88,8 @@ if (!global.__schedulerInstance) {
             if (files.exists(TASKS_FILE_PATH)) {
                 try {
                     let content = files.read(TASKS_FILE_PATH);
-                    log("content");
-                    log(content);
+                    log("任务：" + content);
                     tasks = JSON.parse(content);
-                    log("tasks");
-                    log(tasks);
-                    log("已从tasks.json加载任务:", tasks.length);
                 } catch (e) {
                     log("读取tasks.json出错:", e);
                     tasks = [];
