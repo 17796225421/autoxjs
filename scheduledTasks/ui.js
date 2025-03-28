@@ -50,33 +50,33 @@ ui.layout(
     <vertical padding="16">
         <text text="【添加定时任务】" textColor="#000000" textSize="16sp" margin="0 0 8 0" />
 
-        <text text="选择脚本文件" textColor="#333333" textSize="14sp"/>
+        <text text="选择脚本文件" textColor="#333333" textSize="14sp" />
         <spinner id="spinner_scripts" entries="{{localJsFiles.join('|')}}" />
 
-        <text text="选择定时类型" textColor="#333333" textSize="14sp" margin="8 0"/>
+        <text text="选择定时类型" textColor="#333333" textSize="14sp" margin="8 0" />
         <spinner id="spinner_task_type" entries="每日定时|周期定时" />
 
         <horizontal id="layout_daily" margin="8 0 0 0" visibility="visible">
             <text text="小时:" textSize="14sp" />
-            <input id="input_hour" text="12" hint="小时" inputType="number" w="60" margin="8 0"/>
+            <input id="input_hour" text="12" hint="小时" inputType="number" w="60" margin="8 0" />
             <text text="分钟:" textSize="14sp" />
-            <input id="input_minute" text="0" hint="分钟" inputType="number" w="60" margin="8 0"/>
+            <input id="input_minute" text="0" hint="分钟" inputType="number" w="60" margin="8 0" />
         </horizontal>
 
         <horizontal id="layout_interval" margin="8 0 0 0" visibility="gone">
             <text text="间隔(分钟):" textSize="14sp" />
-            <input id="input_interval" text="30" hint="间隔分钟" inputType="number" w="80" margin="8 0"/>
+            <input id="input_interval" text="30" hint="间隔分钟" inputType="number" w="80" margin="8 0" />
         </horizontal>
 
-        <button id="btn_add_task" text="添加定时任务" margin="8 0"/>
+        <button id="btn_add_task" text="添加定时任务" margin="8 0" />
 
 
         <text text="【管理已有定时任务】" textColor="#000000" textSize="16sp" margin="16 0 8 0" />
 
-        <text text="选择定时任务" textColor="#333333" textSize="14sp"/>
+        <text text="选择定时任务" textColor="#333333" textSize="14sp" />
         <spinner id="spinner_tasks" entries="{{taskEntries.join('|')}}" />
 
-        <button id="btn_delete_task" text="删除所选任务" margin="8 0"/>
+        <button id="btn_delete_task" text="删除所选任务" margin="8 0" />
     </vertical>
 );
 
@@ -131,10 +131,11 @@ ui.btn_add_task.on("click", () => {
     if (result) {
         toast("添加定时任务成功 (ID=" + result.id + ")");
         // 重新刷新并更新任务下拉
+        // 添加任务成功后，刷新 spinner
         allTasks = fetchAllTasks();
-        ui.spinner_tasks.setEntries(
-            allTasks.map(getTaskDisplayName)
-        );
+        let newEntries = allTasks.map(getTaskDisplayName);
+        // 同理，用 join("|") 以保证下拉里是一条一行
+        ui.spinner_tasks.setEntries(newEntries.join("|"));
     } else {
         toast("添加定时任务失败");
     }
@@ -155,9 +156,8 @@ ui.btn_delete_task.on("click", () => {
         toast("删除任务成功");
         // 重新刷新并更新任务下拉
         allTasks = fetchAllTasks();
-        ui.spinner_tasks.setEntries(
-            allTasks.map(getTaskDisplayName)
-        );
+        let newEntries2 = allTasks.map(getTaskDisplayName);
+        ui.spinner_tasks.setEntries(newEntries2.join("|"));
     } else {
         toast("删除任务失败");
     }
