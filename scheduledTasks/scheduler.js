@@ -123,7 +123,8 @@ if (!global.__schedulerInstance) {
                 }
                 // 如果到了执行时间
                 if (now >= task.nextRunTime) {
-                    log("执行任务:", task);
+                    let fileName = task.scriptPath.split("/").pop();
+                    log("执行任务 => " + fileName);
                     runScript(task.scriptPath);
 
                     // 更新下一个执行时间

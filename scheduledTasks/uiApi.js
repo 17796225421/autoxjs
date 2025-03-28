@@ -13,6 +13,8 @@ function getLocalJsFiles() {
         log("目录不存在，自动创建:", basePath);
         files.createWithDirs(basePath);
     }
+    log("basePath");
+    log(basePath);
     let list = files.listDir(basePath, function (name) {
         return name.endsWith(".js") && files.isFile(files.join(basePath, name));
     });
