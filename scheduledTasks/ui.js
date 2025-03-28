@@ -8,6 +8,10 @@
 require("./utils/log.js");
 initLog();
 
+// 关键：先初始化调度器
+let scheduler = require("./scheduler.js");
+scheduler.initScheduler();
+
 // 引入实际处理定时任务的逻辑函数
 let {
     getLocalJsFiles,
@@ -18,21 +22,24 @@ let {
 } = require("./uiApi.js");
 
 // =======================================
-// 1. 初始化：获取同级目录下的所有js脚本 & 查询所有定时任务
+// 1. 初始化：获取同级目录下 tasks/ 目录的所有js脚本 & 查询所有定时任务
 // =======================================
 let localJsFiles = getLocalJsFiles();   // 本地可添加的脚本列表
 let allTasks = fetchAllTasks();         // 当前已有的全部定时任务
-
+log("allTasks");
+log(allTasks);
 /**
  * 供 UI 下拉展示的任务信息
- * 格式： "ID:xxx => [类型] => 路径"
+ * 格式： "[类型] => 路径"
  */
 function getTaskDisplayName(task) {
-    let typeLabel = (task._type === "time") ? "每日" : "周期";
-    return `ID:${task.id} => [${typeLabel}] => ${task.scriptPath}`;
+    let typeLabel = (task.type === "daily") ? "每日" : "周期";
+    let fileName = task.scriptPath.split("/").pop(); // 只显示文件名
+    return `[${typeLabel}] ${fileName}`;
 }
 let taskEntries = allTasks.map(getTaskDisplayName);
-
+log("taskEntries");
+log(taskEntries);
 // =======================================
 // 2. 布局
 // =======================================
@@ -74,6 +81,9 @@ ui.layout(
 // 3. 根据“定时类型”选择，显示/隐藏 不同输入
 // =======================================
 
+// 需要导入 android.view.View
+let View = android.view.View;
+
 ui.spinner_task_type.setOnItemSelectedListener({
     onItemSelected: function (parent, view, position, id) {
         if (position === 0) {
@@ -87,9 +97,6 @@ ui.spinner_task_type.setOnItemSelectedListener({
         }
     }
 });
-
-// 需要导入 android.view.View
-let View = android.view.View;
 
 // =======================================
 // 4. [添加任务] 按钮事件

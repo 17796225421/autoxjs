@@ -36,16 +36,17 @@
         floatyWindow = floaty.rawWindow(
             <frame>
                 <vertical bg={bgColor}>
-                    {/* 顶部标题栏：最小化、全屏、关闭 */}
+                    {/* 顶部标题栏：包含运行日志文字、复制按钮、最小化、全屏、关闭 */}
                     <horizontal id="titleBar" bg="#444444" padding="8" gravity="right">
-                        {/* 运行日志标题(可选) */}
-                        <text text="运行日志" textSize="16sp" textColor="#FFFFFF" layout_weight="1"/>
+                        <text text="日志" textSize="16sp" textColor="#FFFFFF" layout_weight="1"/>
+                        {/* 复制按钮，放在最小化按钮左侧 */}
+                        <text id="copyBtn" text="复制" textSize="16sp" textColor="#FFFFFF" margin="4"/>
                         <text id="minBtn" text="—" textSize="18sp" textColor="#FFFFFF" margin="4"/>
                         <text id="maxBtn" text="❐" textSize="18sp" textColor="#FFFFFF" margin="4"/>
                         <text id="closeBtn" text="✕" textSize="18sp" textColor="#FFFFFF" margin="4"/>
                     </horizontal>
 
-                    {/* 中间滚动区域 */}
+                    {/* 中间滚动区域，用于显示日志 */}
                     <scroll id="logScroll" layout_weight="1">
                         <text id="logText" textSize="14sp" textColor="#FFFFFF" />
                     </scroll>
@@ -64,8 +65,7 @@
         );
 
         // 设置悬浮窗初始大小、位置（可根据需求修改）
-        // -1表示全屏，-2表示自适应
-        floatyWindow.setSize(600, 400); 
+        floatyWindow.setSize(600, 400);
         floatyWindow.setPosition(100, 100);
 
         // 如果需要在关闭时退出脚本
@@ -77,7 +77,7 @@
         ui.run(() => {
             logTextView = floatyWindow.logText;
 
-            // 按住标题栏可拖动
+            // 1. 标题栏拖动移动窗口
             let downX, downY, windowX, windowY;
             floatyWindow.titleBar.setOnTouchListener(function (view, event) {
                 switch (event.getAction()) {
@@ -97,13 +97,20 @@
                 return false;
             });
 
-            // 最小化按钮
+            // 2. 复制按钮
+            floatyWindow.copyBtn.setOnClickListener(() => {
+                let content = logTextView.getText() || "";
+                setClip(String(content));
+                toast("复制成功");
+            });
+
+            // 3. 最小化按钮
             floatyWindow.minBtn.setOnClickListener(() => {
                 // 简单将窗口高度变小，仅保留标题栏
                 floatyWindow.setSize(-2, 60);
             });
 
-            // 全屏按钮
+            // 4. 全屏按钮
             floatyWindow.maxBtn.setOnClickListener(() => {
                 if (!isMaximized) {
                     // 记录当前位置和大小
@@ -123,12 +130,12 @@
                 isMaximized = !isMaximized;
             });
 
-            // 关闭按钮
+            // 5. 关闭按钮
             floatyWindow.closeBtn.setOnClickListener(() => {
                 close();
             });
 
-            // 右下角拖动缩放
+            // 6. 右下角拖动缩放
             let resizeDownX, resizeDownY, downWidth, downHeight;
             floatyWindow.resizeHandle.setOnTouchListener(function (view, event) {
                 switch (event.getAction()) {
@@ -155,7 +162,7 @@
      */
     function log(msg) {
         if (!floatyWindow || !logTextView) {
-("浮窗未初始化或已关闭，无法输出日志。");
+            // 如浮窗未初始化或已关闭，则无法输出日志
             return;
         }
 
