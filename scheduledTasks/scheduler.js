@@ -1,3 +1,8 @@
+/**
+ * scheduler.js
+ * ---------------------------
+ * 定时任务
+ */
 "ui";
 // 引入所需类
 importClass(android.os.PowerManager);
@@ -27,6 +32,9 @@ if (!global.__schedulerInstance) {
         //   nextRunTime: 1680000000000, // 毫秒时间戳，下次执行时间
         // }
         let tasks = [];
+
+        // 用于记录当前是否有线程在运行任务（串行队列）
+        let taskRunnerThread = null;
 
         /**
          * 初始化调度器：
@@ -113,37 +121,64 @@ if (!global.__schedulerInstance) {
 
         /**
          * 每分钟调用一次，用于检查并执行到期的任务
+         * 关键：一次只开一个线程顺序执行，避免并发。
          */
         function checkAndRunDueTasks() {
-            let now = Date.now(); // 当前时间戳(毫秒)
-            tasks.forEach(task => {
+            // 如果之前的任务执行线程还在跑，就直接跳过，避免并发
+            if (taskRunnerThread && taskRunnerThread.isAlive()) {
+                log("上一次任务队列还在执行，跳过本次检查");
+                return;
+            }
+
+            let now = Date.now();
+            // 找出所有到期任务
+            let dueTasks = tasks.filter(task => {
+                // 没有初始化 nextRunTime 的也算
                 if (!task.nextRunTime) {
-                    // 如果没有nextRunTime，先初始化一下
                     task.nextRunTime = calcNextRunTime(task);
                 }
-                // 如果到了执行时间
-                if (now >= task.nextRunTime) {
+                return now >= task.nextRunTime;
+            });
+
+            if (dueTasks.length === 0) {
+                // 如果没有到期任务就退出
+                return;
+            }
+
+            // 按照 nextRunTime 升序排序一下，保证先到期的先执行
+            dueTasks.sort((a, b) => a.nextRunTime - b.nextRunTime);
+
+            // 启动一个子线程去顺序执行所有到期任务
+            taskRunnerThread = threads.start(function () {
+                for (let task of dueTasks) {
                     let fileName = task.scriptPath.split("/").pop();
                     log("执行任务 => " + fileName);
-                    runScript(task.scriptPath);
 
-                    // 更新下一个执行时间
+                    let engine = runScript(task.scriptPath);
+                    // 等待脚本执行完成
+                    if (engine) {
+                        engine.waitFor();
+                    } else {
+                        // 如果没有获取到 engine（比如外部环境没有engine），
+                        // 这里就直接模拟等待1秒。
+                        sleep(1000);
+                    }
+
+                    // 脚本执行完后，更新它的下一次执行时间
                     if (task.type === "daily") {
-                        // 每日任务：设置为下一天的相同 hour:minute
                         task.nextRunTime = calcNextRunTime(task);
                     } else if (task.type === "interval") {
-                        // 周期任务：把 nextRunTime += interval(秒)
-                        // 注意，可能多分钟未检查，如果间隔很短，可以用 while 补偿
-                        let intervalMs = task.interval * 1000; // 转为毫秒
-                        while (task.nextRunTime <= now) {
+                        let intervalMs = task.interval * 1000;
+                        // 为了避免当前时间已经超过多次间隔，这里循环修正
+                        while (task.nextRunTime <= Date.now()) {
                             task.nextRunTime += intervalMs;
                         }
                     }
                 }
-            });
 
-            // 保存最新的任务时间
-            saveTasksToFile();
+                // 全部执行完，保存最新的 tasks 信息
+                saveTasksToFile();
+            });
         }
 
         /**
@@ -167,22 +202,25 @@ if (!global.__schedulerInstance) {
                 let intervalMs = (task.interval || 60) * 1000; // 默认60秒
                 return now.getTime() + intervalMs;
             }
-            // 默认
+            // 默认（防止意外）
             return now.getTime() + 60 * 1000;
         }
 
         /**
-         * 执行脚本
+         * 执行脚本，返回一个 ScriptEngine 对象（可调用 waitFor）
          */
         function runScript(path) {
             try {
                 if (typeof engines !== 'undefined') {
-                    engines.execScriptFile(path);
+                    return engines.execScriptFile(path);
                 } else {
                     log("模拟执行脚本:", path);
+                    // 这种情况下没有 engine 可以返回，就返回 null
+                    return null;
                 }
             } catch (e) {
                 log("执行脚本失败:", e);
+                return null;
             }
         }
 
@@ -242,7 +280,9 @@ if (!global.__schedulerInstance) {
             return tasks;
         }
 
-        // 生成唯一 ID（这里简单处理，可根据需要改成UUID等）
+        /**
+         * 生成唯一 ID（这里简单处理，可根据需要改成UUID等）
+         */
         function genTaskId() {
             return Math.floor(Math.random() * 1000000000);
         }
