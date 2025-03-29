@@ -1,3 +1,9 @@
+/**
+ * uiApi.js
+ * ---------------------------
+ * 脚本逻辑部分
+ */
+
 let scheduler = require("./scheduler.js");
 
 /**

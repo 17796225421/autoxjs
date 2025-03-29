@@ -5,7 +5,7 @@
  */
 
 let { startMonitor } = require("./monitor.js");
-startMonitor(textMatches(/(结束运行|强行停止)/), "结束运行");
+startMonitor(id("cfx"), "测试");
 
 let { findTextByOcr } = require("./ocr.js");
 let uiObjects = findTextByOcr("乐享大智");
