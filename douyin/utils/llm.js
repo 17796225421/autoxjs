@@ -5,12 +5,11 @@
  */
 
 /**
- * 请求 LLM 接口，识别图片验证码
- * @param {string} imageBase64 - 图片的 Base64 数据
+ * 请求 LLM 接口
  * @param {string} prompt - 给 LLM 的文字提示
  * @returns {string} LLM 返回的识别/分析结果
  */
-function requestImageCaptcha(imageBase64, prompt) {
+function requestImageCaptcha(prompt) {
     log("【requestImageCaptcha】开始向 LLM 请求识别...");
 
     let url = "https://chatapi.onechats.top/v1/chat/completions";
@@ -71,6 +70,59 @@ function requestImageCaptcha(imageBase64, prompt) {
     }
 }
 
+function requestLLM(imageBase64, prompt) {
+    log("【requestLLM】开始请求 LLM...");
+
+    // 示例 URL：假设 deepseek-chat 提供的接口
+    let url = "https://api.deepseek-chat.com/v1/chat/completions";
+    let apiKey = "YOUR_DEEPSEEK_CHAT_APIKEY"; // 替换为你自己的
+
+    // 这里的 body 根据 deepseek-chat 接口规范编写
+    let body = {
+        model: "gpt-4o-2024-11-20",
+        messages: [
+            {
+                role: "user",
+                content: prompt
+            }
+        ],
+        max_tokens: 500,
+        temperature: 0.7
+    };
+
+    // 如果你需要传 imageBase64，也可放到 attachments 之类字段中
+    // 具体看 deepseek-chat 是否支持
+    // body.attachments = [{ ... }];
+
+    try {
+        let response = http.postJson(url, body, {
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + apiKey
+            }
+        });
+
+        if (!response || response.statusCode !== 200) {
+            log("【requestLLM】请求失败，状态码=" + (response ? response.statusCode : "无"));
+            return "";
+        }
+
+        let resultJson = response.body.json();
+        if (!resultJson || !resultJson.choices || resultJson.choices.length === 0) {
+            log("【requestLLM】返回内容无有效结果");
+            return "";
+        }
+
+        let llmAnswer = resultJson.choices[0].message.content;
+        log("【requestLLM】LLM返回: " + llmAnswer);
+        return llmAnswer;
+    } catch (err) {
+        log("【requestLLM】请求异常: " + err);
+        return "";
+    }
+}
+
 module.exports = {
-    requestImageCaptcha
+    requestImageCaptcha,
+    requestLLM
 };

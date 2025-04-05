@@ -11,7 +11,8 @@ let { safeClick } = require("./clickUtils");
  * 按照给定文本进行 OCR 搜索，并返回可用的伪 UiObject 列表
  * @param {string} targetText - 要搜索的文本
  * @returns {Array} 返回的数组元素可直接用于 safeClick()
- */function findTextByOcr(targetText) {
+ */
+function findTextByOcr(targetText) {
     // 1. 请求截图权限
     if (!global.hasCapturePermission) {
         threads.start(function () {
@@ -37,7 +38,7 @@ let { safeClick } = require("./clickUtils");
     }
 
     // 3. 初始化 OCR
-    let ocr = $ocr.create({ models: "default" });
+    let ocr = C.create({ models: "default" });
 
     // 4. 对截图进行识别
     let results = ocr.detect(img);
@@ -101,6 +102,35 @@ let { safeClick } = require("./clickUtils");
     return uiObjects;
 }
 
+/**
+ * @desc 获取当前屏幕上能够识别到的所有文本信息
+ * @returns {Array<string>} 返回文本数组
+ */
+function getAllTextsOnScreen() {
+    // 这里仅给出一个示例实现，实际可根据你使用的 OCR 方案调整
+    // 例如 Auto.js 自带的 textRecognition() / 或者第三方接口
+    // 或直接基于 bounds() 遍历并调用 text() / desc() / ...
+    // 以下简单示意
+    let result = [];
+    let allNodes = depth(0).find(); // 递归查找整个屏幕UI节点
+    if (allNodes) {
+        for (let i = 0; i < allNodes.size(); i++) {
+            let node = allNodes.get(i);
+            let nodeText = node.text() || node.desc();
+            if (nodeText && nodeText.trim().length > 0) {
+                result.push(nodeText.trim());
+            }
+        }
+    }
+
+    // 也可以此处做去重或合并
+    // result = Array.from(new Set(result));
+
+    log("【OCR】识别到文本: ", JSON.stringify(result));
+    return result;
+}
+
 module.exports = {
-    findTextByOcr
+    findTextNodes,
+    getAllTextsOnScreen
 };
