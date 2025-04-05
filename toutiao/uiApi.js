@@ -1,15 +1,16 @@
 /**
- * toutiao.js
+ * uiApi.js
+ * ---------------------------
+ * 脚本逻辑部分
  */
 
-let { safeClick } = require("../utils/clickUtils.js");
-let { openApp, closeApp } = require("../utils/app.js");
-let { loopRunner } = require("../utils/loop.js");
-
-mainLogic();
+let { safeClick } = require("./utils/clickUtils.js");
+let { openApp, closeApp } = require("./utils/app.js");
+let { loopRunner } = require("./utils/loop.js");
+let { swipeUpScreens } = require("./utils/swipeUtils.js");
 
 function mainLogic() {
-    loopRunner(重启头条, 3, 10000);
+    loopRunner(重启头条, 1000, 10000);
 }
 
 function 重启头条() {
@@ -22,7 +23,8 @@ function 重启头条() {
         if (id("cfx").findOnce(0).child(0) === null) {
             break;
         }
-        safeClick(id("cfx").findOnce(0).child(0), "第0个草稿", 10000);
+        safeClick(id("cfx").findOnce(0).child(0), "第0个草稿", 20000);
+        swipeUpScreens(1.0, 500, 300);
         safeClick(text("定时发布").findOnce(0).parent(), "定时发布", 5000);
         let [dateStr, hourStr, minuteStr] = getRandomFutureTime();
         // 分别设置日期、小时、分钟
@@ -30,7 +32,7 @@ function 重启头条() {
         setPickerValueByCalculation("jyp", hourStr);
         setPickerValueByCalculation("jyq", minuteStr);
         safeClick(text("确定").findOnce(0), "确定", 5000);
-        safeClick(text("发布").findOnce(0), "发布", 5000);
+        safeClick(text("发布").findOnce(0), "发布", 10000);
     }
 
 }
