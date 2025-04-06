@@ -10,41 +10,31 @@
 
 let { safeClick } = require("./utils/clickUtils.js");
 let { swipeUpScreens } = require("./utils/swipeUtils.js");
+
+
 // ... 可能还要用到其他 utils
 
-/**
- * @desc 执行整个 actionPlan
- * @param {Object} actionPlan - 形如 { actions: [ { actionType, ... } ] }
- */
+// 执行入口：精准结构约束
 function executeActionPlan(actionPlan) {
-    if (!actionPlan || !Array.isArray(actionPlan.actions)) {
-        log("【Executor】actionPlan 无效，跳过执行");
-        return;
-    }
-    log("【Executor】开始执行 actionPlan...");
-
-    // actionType -> 执行函数 的映射表
-    let actionMap = {
-        "like": doLike,
-        "comment": doComment,
-        "follow": doFollow,
-        "watchVideo": doWatchVideo,
-        "sendMessage": doSendMessage,
-        "postVideo": doPostVideo
-        // ... 可自行扩展
+    const actionMap = {
+        like: doLike,
+        comment: doComment,
+        follow: doFollow,
+        watchVideo: doWatchVideo,
+        sendMessage: doSendMessage,
+        postVideo: doPostVideo
     };
 
-    for (let i = 0; i < actionPlan.actions.length; i++) {
-        let action = actionPlan.actions[i];
-        let fun = actionMap[action.actionType];
-        if (fun) {
-            log(`【Executor】执行第${i}个操作，actionType=${action.actionType}`);
-            fun(action);
+    actionPlan.actions.forEach((action, idx) => {
+        let { actionType, params } = action;
+        let executeFunction = actionMap[actionType];
+        if (executeFunction) {
+            log(`【Executor】执行第${idx + 1}个操作: ${actionType}`);
+            executeFunction(params);
         } else {
-            log(`【Executor】未识别的actionType=${action.actionType}，跳过`);
+            log(`【Executor】未知操作类型: ${actionType}`);
         }
-    }
-    log("【Executor】actionPlan 执行完毕");
+    });
 }
 
 /**

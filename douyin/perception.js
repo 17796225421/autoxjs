@@ -8,17 +8,20 @@
 
 let { safeClick } = require("./utils/clickUtils.js");
 let { getAllTextsOnScreen } = require("./utils/ocr.js");
+let { saveJsonToFile, readJsonFromFile } = require("./utils/fileUtils.js");
 
-// 用于保存上次的决策数据，供本次感知时使用
-// 也可改为外部文件持久化，如 storages.create("my_decision").put(...) 
-let lastDecisionResult = null;
+const DECISION_RESULT_PATH = "/sdcard/mini-app/decisionResult.json";
+
+// 加载上次决策数据（从文件中读取）
+let lastDecisionResult = readJsonFromFile(DECISION_RESULT_PATH);
 
 /**
- * @desc 在本文件中更新 lastDecisionResult
- *       让外部(如 decision.js)可以在完成决策后调用
+ * 更新并持久化 lastDecisionResult
+ * @param {Object} decisionData - 决策数据
  */
 function updateLastDecisionResult(decisionData) {
     lastDecisionResult = decisionData;
+    saveJsonToFile(DECISION_RESULT_PATH, lastDecisionResult);
 }
 
 /**
