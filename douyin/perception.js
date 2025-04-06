@@ -39,6 +39,8 @@ function getLastDecisionResult() {
  * @returns {Object} 包含页面文本信息 + 历史决策信息的对象
  */
 function gatherPerceptionData() {
+    // todo 这里需要重点分析首页第一条视频
+    
     log("【Perception】开始感知...");
 
     // 1. 假设这里可以找到“消息”按钮

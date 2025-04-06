@@ -77,26 +77,6 @@ function doWatchVideo(action) {
     sleep(action.watchDuration || 5000);
 }
 
-/**
- * @desc 示例：发送私信
- * @param {Object} action - { actionType: "sendMessage", message: "..." }
- */
-function doSendMessage(action) {
-    log("【Executor-doSendMessage】执行私信, 内容=" + action.message);
-    // ...
-    sleep(1000);
-}
-
-/**
- * @desc 示例：发视频
- * @param {Object} action - { actionType: "postVideo", title: "...", videoPath: "..." }
- */
-function doPostVideo(action) {
-    log("【Executor-doPostVideo】执行发视频, 标题=" + action.title);
-    // ...
-    sleep(2000);
-}
-
 module.exports = {
     executeActionPlan
 };
