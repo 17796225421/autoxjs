@@ -42,12 +42,7 @@ function gatherPerceptionData() {
     log("【Perception】开始感知...");
 
     // 1. 假设这里可以找到“消息”按钮
-    let msgButton = text("消息").findOnce();
-    if (msgButton) {
-        safeClick(msgButton, "消息Tab", 2000);
-    } else {
-        log("【Perception】未找到消息按钮，跳过点击");
-    }
+    safeClick(text("消息").findOnce(), "消息Tab");
 
     // 2. 调用 OCR 获取当前页面所有文本
     let currentTexts = getAllTextsOnScreen();

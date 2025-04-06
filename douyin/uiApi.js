@@ -4,13 +4,15 @@
  * 脚本逻辑部分
  */
 
-let { safeClick } = require("./utils/clickUtils.js");
 let { loopRunner } = require("./utils/loop.js");
+let { openApp, closeApp } = require("./utils/app.js");
 let { gatherPerceptionData } = require("./perception.js");
 let { makeDecision } = require("./decision.js");
 let { executeActionPlan } = require("./executor.js");
 
 global.hasCapturePermission = false;
+
+mainLogic();
 
 function mainLogic() {
     loopRunner(感知决策执行, 1000, 10000);

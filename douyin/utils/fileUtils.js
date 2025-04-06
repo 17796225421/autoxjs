@@ -32,7 +32,8 @@ function saveJsonToFile(filePath, data) {
  * @param {Object} defaultValue - 默认返回的数据（若文件不存在）
  * @returns {Object} 读取到的数据对象
  */
-function readJsonFromFile(filePath, defaultValue = {}) {
+function readJsonFromFile(filePath, defaultValue) {
+    defaultValue = defaultValue || {};
     try {
         if (!files.exists(filePath)) {
             log(`【fileUtils】文件不存在(${filePath}), 返回默认值`);

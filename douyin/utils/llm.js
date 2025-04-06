@@ -7,12 +7,12 @@
 let { validate } = require("./jsonValidator.js");
 
 const LLM_CONFIG = {
-    "gpt-4o": {
+    "gpt-4o-2024-11-20": {
         url: "https://chatapi.onechats.top/v1/chat/completions",
         apiKey: "sk-yC03MnkqpVB489NOJwX3tLmxSepXuilqzGOBBrlCXJ6JWb1G",
         max_tokens: 300,
     },
-    "deepseek-chat": {
+    "deepseek-ai/DeepSeek-V3": {
         url: "https://api.siliconflow.cn/v1/chat/completions",
         apiKey: "sk-acsnxsxkssmqlkzudzvhmbmabyscwcbtqquslizdadmdkpot",
         max_tokens: 800,
@@ -29,13 +29,13 @@ const LLM_CONFIG = {
  */
 function requestLLM(prompt, model, imageBase64, responseSchema) {
     imageBase64 = imageBase64 || '';
-    log(`【requestLLM】请求模型: ${model}`);
+    log(`【requestLLM】请求开始: ${prompt}`);
 
     let { url, apiKey, max_tokens } = LLM_CONFIG[model];
 
     // 构建请求body
     let body = {
-        model,
+        model: model,
         messages: [{
             role: "user",
             content: imageBase64 ? [
@@ -52,7 +52,8 @@ function requestLLM(prompt, model, imageBase64, responseSchema) {
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${apiKey}`
-            }
+            },
+            timeout: 120000
         });
 
         if (!response || response.statusCode !== 200) {
@@ -66,6 +67,7 @@ function requestLLM(prompt, model, imageBase64, responseSchema) {
 
         // 解析并校验JSON输出
         let llmAnswer = resultJson.choices[0].message.content;
+        log("llmllmAnswer", llmAnswer);
         let parsedResponse = JSON.parse(llmAnswer);
         let validation = validate(parsedResponse, responseSchema);
 

@@ -12,8 +12,6 @@ let { safeClick } = require("./utils/clickUtils.js");
 let { swipeUpScreens } = require("./utils/swipeUtils.js");
 
 
-// ... 可能还要用到其他 utils
-
 // 执行入口：精准结构约束
 function executeActionPlan(actionPlan) {
     const actionMap = {

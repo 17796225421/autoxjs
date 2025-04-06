@@ -5,6 +5,7 @@
  */
 let { captureImageByUiObject, convertImageToBase64 } = require("./image.js");
 let { requestLLM } = require("./llm.js");
+let PromptManager = require("./promptManager.js");
 
 /**
  * 专门处理需要“点击”的验证码
@@ -39,16 +40,7 @@ function solveClickCaptcha(uiObject, prompt) {
     }
 
     // 3. 固定的prompt指导LLM输出规范
-    let fixedPrompt = `
-    ${prompt}。
-    图片的长宽比例为1，左上角为(0,0)，右下角为(1,1)。  
-    输出JSON示例:
-    {
-        "points": [
-            { "x": 0.12, "y": 0.34 },
-            { "x": 0.56, "y": 0.78 }
-        ]
-    }`;
+    let dynamicPrompt = PromptManager.getClickCaptchaPrompt(prompt);
 
     // 4. 严格定义JSON Schema校验结构
     let captchaSchema = {
@@ -73,7 +65,7 @@ function solveClickCaptcha(uiObject, prompt) {
     // 5. 调用通用llm函数 (模型名=gpt-4o-2024-11-20，图片非空)
     let llmResult;
     try {
-        llmResult = requestLLM(fixedPrompt, "gpt-4o-2024-11-20", imageBase64, captchaSchema);
+        llmResult = requestLLM(dynamicPrompt, "gpt-4o-2024-11-20", imageBase64, captchaSchema);
         log("【solveClickCaptcha】LLM返回结果: " + JSON.stringify(llmResult));
     } catch (e) {
         log("【solveClickCaptcha】LLM请求异常：" + e.message);
