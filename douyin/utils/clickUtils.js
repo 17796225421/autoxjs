@@ -90,6 +90,34 @@ function safeClick(uiObject, desc, waitTime) {
     return false;
 }
 
+/**
+ * 安全长按函数（模拟真实用户行为，正态分布随机点击）
+ * @param {number} duration - 长按的持续时间（毫秒）
+ * @param {string} desc - 动作描述，用于日志记录
+ * @param {Object} [areaRatio={x:[0.4,0.6],y:[0.4,0.6]}] - 屏幕区域比例范围（默认屏幕中间附近）
+ * @returns {boolean} 是否成功完成长按
+ */
+function safeLongPress(duration, desc, areaRatio) {
+    areaRatio = areaRatio || {
+        x: [0.4, 0.6],
+        y: [0.4, 0.6]
+    };
+
+    const width = device.width;
+    const height = device.height;
+
+    const pressX = randomGaussian(width * areaRatio.x[0], width * areaRatio.x[1]);
+    const pressY = randomGaussian(height * areaRatio.y[0], height * areaRatio.y[1]);
+
+    log(`【safeLongPress】${desc}，坐标=(${pressX.toFixed(1)},${pressY.toFixed(1)})，时长=${duration}ms`);
+
+    let result = press(pressX, pressY, duration);
+    sleep(500); // 稍微等待，保证动作充分完成
+
+    return result;
+}
+
 module.exports = {
     safeClick,
+    safeLongPress,
 };

@@ -65,5 +65,6 @@ function swipeUpFraction(fraction, duration) {
 }
 
 module.exports = {
-    swipeUpScreens
+    swipeUpScreens,
+    swipeUpFraction
 };
