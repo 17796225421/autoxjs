@@ -1,5 +1,5 @@
 /**
- * PromptManager
+ * PromptManager.js
  * 专门管理LLM Prompt模板，提供动态生成Prompt能力
  */
 
@@ -59,15 +59,32 @@ let PromptManager = (function() {
          * @returns {string} 完整的决策Prompt文本
          */
         getDecisionPrompt(perceivedData, actionPlanSchema) {
-            let tpl = templates.decision.template;
+            let tpl = [
+                "{agentIdentity}",
+                "以下是我感知到的视频信息: {videoInfo}",
+                "以下是我感知到的首条评论信息: {firstComment}",
+                "以下是我感知到的评论列表信息: {commentInfo}",
+                "以下是我感知到的单聊信息: {chatInfo}",
+                "以下是我感知到的群聊信息: {groupChatInfo}",
+                "以下是我历史决策信息: {historyDecision}",
+                "请根据我的推广目标：{promotionGoals}，",
+                "结合精准的目标用户画像：{userProfiles}，",
+                "生成下一步在抖音App要执行的操作列表，并严格按照JSON Schema输出：",
+                "{actionPlanSchema}"
+            ].join("\n");
+        
             let ctx = templates.decision.context;
             return tpl.replace("{agentIdentity}", ctx.agentIdentity)
-                      .replace("{pageTexts}", JSON.stringify(perceivedData.pageTexts))
+                      .replace("{videoInfo}", JSON.stringify(perceivedData.videoInfo))
+                      .replace("{firstComment}", JSON.stringify(perceivedData.firstComment))
+                      .replace("{commentInfo}", JSON.stringify(perceivedData.commentInfo))
+                      .replace("{chatInfo}", JSON.stringify(perceivedData.chatInfo))
+                      .replace("{groupChatInfo}", JSON.stringify(perceivedData.groupChatInfo))
                       .replace("{historyDecision}", JSON.stringify(perceivedData.historyDecision))
                       .replace("{promotionGoals}", ctx.promotionGoals.join("、"))
                       .replace("{userProfiles}", JSON.stringify(ctx.userProfiles, null, 2))
                       .replace("{actionPlanSchema}", JSON.stringify(actionPlanSchema, null, 2));
-        },
+                },
 
         /**
          * 支持动态修改模板

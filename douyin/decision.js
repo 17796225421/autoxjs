@@ -37,14 +37,6 @@ function makeDecision(perceivedData) {
         return { actions: [] };
     }
 
-    let decisionResult = {
-        actionPlan,
-        rawLLMResponse: JSON.stringify(actionPlan),
-        timestamp: new Date().toISOString()
-    };
-
-    updateLastDecisionResult(decisionResult);
-
     log("【Decision】执行计划生成成功: " + JSON.stringify(actionPlan));
     return actionPlan;
 }

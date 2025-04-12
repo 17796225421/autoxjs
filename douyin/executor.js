@@ -21,8 +21,8 @@ const actionMap = {
     不感兴趣: doNotInterested,
     转发: doShare,
     推荐: dorecommend,
+    回复首条评论: doReplyFirstComment,
     评论: doComment,
-    回复评论: doReplyComment,
     私信: doSendMessage,
     群聊: doGroupMessage,
     刷视频: doWatchVideos
@@ -30,15 +30,19 @@ const actionMap = {
 
 // 主执行入口
 function executeActionPlan(actionPlan) {
-    actionPlan.actions.forEach((action, idx) => {
-        let { 类型, 参数 } = action;
-        let executeFunction = actionMap[类型];
-        if (executeFunction) {
-            log(`【Executor】执行第${idx + 1}个操作: ${类型}`);
-            executeFunction(参数);
-        } else {
-            log(`【Executor】未知操作类型: ${类型}`);
-        }
+    Object.keys(actionMap).forEach((类型) => {
+        actionPlan.actions
+            .filter(action => action.类型 === 类型)
+            .forEach((action, idx) => {
+                let { 参数 } = action;
+                let executeFunction = actionMap[类型];
+                if (executeFunction) {
+                    log(`【Executor】按顺序执行操作: ${类型}`);
+                    executeFunction(参数);
+                } else {
+                    log(`【Executor】未知操作类型: ${类型}`);
+                }
+            });
     });
 }
 
@@ -95,7 +99,7 @@ function doComment(参数) {
     // }
 }
 
-function doReplyComment(参数) {
+function doReplyFirstComment(参数) {
     let 是否回复评论 = 参数.是否回复评论;
     let 回复评论内容 = 参数.回复评论内容;
     let 回复内容 = 参数.回复内容;

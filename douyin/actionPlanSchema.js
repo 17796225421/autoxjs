@@ -74,6 +74,21 @@ const actionPlanSchema = {
                         }
                     },
                     {
+                        if: { properties: { 类型: { const: "回复首条评论" } } },
+                        then: {
+                            properties: {
+                                参数: {
+                                    properties: {
+                                        是否回复评论: { type: "boolean" },
+                                        回复评论内容: { type: "string" },
+                                        回复内容: { type: "string" },
+                                        是否表情: { type: "boolean" }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    {
                         if: { properties: { 类型: { const: "评论" } } },
                         then: {
                             properties: {
@@ -84,21 +99,6 @@ const actionPlanSchema = {
                                         是否表情: { type: "boolean" },
                                         评论是否点赞: { type: "boolean" },
                                         评论是否不喜欢: { type: "boolean" }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    {
-                        if: { properties: { 类型: { const: "回复评论" } } },
-                        then: {
-                            properties: {
-                                参数: {
-                                    properties: {
-                                        是否回复评论: { type: "boolean" },
-                                        回复评论内容: { type: "string" },
-                                        回复内容: { type: "string" },
-                                        是否表情: { type: "boolean" }
                                     }
                                 }
                             }
