@@ -6,7 +6,7 @@
 
 let { loopRunner } = require("./utils/loop.js");
 let { openApp, closeApp } = require("./utils/app.js");
-let { gatherPerceptionData } = require("./perception.js");
+let { collectInfo } = require("./perception.js");
 let { makeDecision } = require("./decision.js");
 let { executeActionPlan } = require("./executor.js");
 
@@ -25,7 +25,7 @@ function 感知决策执行() {
     closeApp("抖音");
     openApp("抖音");
     // 1. 感知
-    let perceivedData = gatherPerceptionData();
+    let perceivedData = collectInfo();
     // 2. 决策
     let actionPlan = makeDecision(perceivedData);
     // 3. 执行

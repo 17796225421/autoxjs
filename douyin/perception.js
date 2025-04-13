@@ -6,7 +6,9 @@
  * 以及推广金银珠宝首饰等业务，精准吸引兼职赚钱和高价值消费人群。
  * 基于 AutoJS + LLM 智能决策，支持多号、多App自动化引流养号
  */
-
+let { collectScrollableChildren, scrollOneStep } = require("./utils/swipeUtils.js");
+let { safeClick } = require("./utils/clickUtils.js");
+let { findTextByOcr } = require("./utils/ocr.js");
 /**
  * 汇总感知数据结构
  *
@@ -20,12 +22,13 @@
 function collectInfo() {
     log("【Perception】整合感知数据...");
 
+    let chatNameList = collectChatNameList();
     let perceptionData = {
         videoInfo: collectVideoInfo(),
         firstComment: collectFirstComment(),
         commentInfo: collectCommentInfo(),
-        chatInfo: collectChatInfo(),
-        groupChatInfo: collectGroupChatInfo()
+        chatInfo: collectChatInfo(chatNameList),
+        groupChatInfo: collectGroupChatInfo(chatNameList)
     };
 
     log("【Perception】数据整合完成：" + JSON.stringify(perceptionData));
@@ -63,20 +66,24 @@ function collectFirstComment() {
     safeClick(descContains("评论").findOne().parent(), "评论区");
     safeClick(descContains("放大评论区").findOne(), "放大评论区");
 
-    // 获取评论区首条评论
-    let commentListView = className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
+    let commentListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);
 
+    // 获取评论区首条评论
     let firstCommentNode = commentListView.child(0);
-    let username=firstCommentNode.child(1).child(2).text();
-    let content=firstCommentNode.child(1).child(3).text();
+    let username = firstCommentNode.child(1).child(2).text();
+    let content = firstCommentNode.child(1).child(3).text();
 
     // 点击首条评论展开回复
     safeClick(commentListView.child(1), "展开首条评论回复");
+    safeClick(findTextByOcr("展开更多")[0], "展开更多");
+    scrollOneStep(commentListView);
+    safeClick(findTextByOcr("展开更多")[0], "展开更多");
+    scrollOneStep(commentListView, "down");
 
-    // 收集回复列表
+    let replyListView = collectScrollableChildren(commentListView,
+        node => node.id() === "k4=");
+
     let replies = [];
-    let replyListView = className("android.recyclerview.widget.RecyclerView").findOne(3000);
-
     if (replyListView) {
         replyListView.children().forEach(replyNode => {
             let replyContent = replyNode.findOne(id("content"))?.text() || "";
@@ -107,14 +114,18 @@ function collectFirstComment() {
  */
 function collectCommentInfo() {
     log("【Perception】收集评论列表...");
+    // 点击进入评论区
     safeClick(descContains("评论").findOne().parent(), "评论区");
     safeClick(descContains("放大评论区").findOne(), "放大评论区");
 
-    let comments = [];
-    let commentNodes = className("android.recyclerview.widget.RecyclerView").findOne(5000).children();
+    let commentListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);
 
+    let commentNodes = collectScrollableChildren(commentListView,
+        node => node.id() === "esx");
+
+    let comments = [];
     commentNodes.forEach(node => {
-        let username = node.findOne(id("username"))?.text() || "未知";
+        let username = node.findOne(id("title"))?.text() || "未知";
         let content = node.findOne(id("content"))?.text() || "";
         if (content) {
             comments.push({ username, content });
@@ -130,18 +141,46 @@ function collectCommentInfo() {
  * @property {Chat[]} chats - 单聊列表
  *
  * @typedef {Object} Chat
+ * @property {string} title - 消息标题
  * @property {Message[]} messages - 消息内容列表
  *
  * @typedef {Object} Message
  * @property {boolean} isMe - 是否为本人发送（true为自己发送，false为对方发送）
  * @property {string} content - 消息文本内容
  */
-function collectChatInfo() {
+function collectChatInfo(chatNameList) {
     log("【Perception】收集单聊信息...");
     safeClick(text("消息").findOne(), "消息Tab");
 
     let chats = [];
     let chatList = className("android.recyclerview.widget.RecyclerView").findOne().children();
+
+
+    chatList = collectScrollableChildren(chatList,
+        node => {
+            let titleNode = node.findOne(id("tv_title"));
+            return titleNode && !chatNameList.includes(titleNode.text());
+        }
+    );
+    chatList.forEach(node => {
+        let title = node.findOne(id("tv_title"))?.text() || "未知";
+        safeClick(text(title).findOne(), "聊天框");
+
+        let commentListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);
+
+        let messages = [];
+        let messageNodes = collectScrollableChildren(commentListView, node => true);
+        let isMe = true;
+        messageNodes.forEach(node => {
+            let avatar = node.findOne(className("android.widget.Button"));
+            if (avatar) {
+                isMe = avatar.bounds.left > 500;
+            }
+            let content = node.findOne(className("android.widget.TextView").id(content_layout)).text();
+            messages.push({ username, content });
+        });
+    });
+
 
     chatList.forEach(chat => {
         safeClick(chat, "打开单聊");
@@ -170,7 +209,7 @@ function collectChatInfo() {
  * @property {boolean} isMe - 是否为本人发送（true为自己发送，false为他人发送）
  * @property {string} content - 消息文本内容
  */
-function collectGroupChatInfo() {
+function collectGroupChatInfo(chatNameList) {
     log("【Perception】收集群聊信息...");
     safeClick(text("群聊").findOne(), "群聊Tab");
 
@@ -191,6 +230,25 @@ function collectGroupChatInfo() {
     });
 
     return { messages };
+}
+
+function collectChatNameList() {
+    log("【Perception】收集群聊名称...");
+    safeClick(text("消息").findOne(), "消息Tab");
+    safeClick(desc("更多面板").findOne(), "更多面板");
+    safeClick(text("发起群聊").findOne(), "发起群聊");
+    safeClick(text("选择一个已有群聊").findOne(), "选择一个已有群聊");
+    let groupChatListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);
+    groupChatListView = collectScrollableChildren(groupChatListView, node => true);
+    let groupChatNameList = [];
+    groupChatListView.forEach(node => {
+        let matchedNode = node.findOne(textMatches(/^.{2,}$/));
+        if (matchedNode) {
+            return;
+        }
+        groupChatNameList.add(matchedNode.text());
+    });
+    return groupChatNameList;
 }
 
 module.exports = {

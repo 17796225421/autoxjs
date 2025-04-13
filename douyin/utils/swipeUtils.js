@@ -64,7 +64,100 @@ function swipeUpFraction(fraction, duration) {
     swipe(startX, startY, endX, endY, duration);
 }
 
+/**
+ * 动态滚动并收集满足过滤函数的所有不重复子节点
+ * @param {UiObject} uiObject - 要滚动收集的容器控件
+ * @param {function(UiObject): boolean} filterFn - 自定义过滤函数，决定是否收集某节点
+ * @param {number} maxScrolls - 最大滚动次数
+ * @param {string} direction - 滚动方向 ("up"|"down")
+ * @returns {UiObject[]} - 满足条件的不重复直接子节点列表
+ */
+function collectScrollableChildren(uiObject, filterFn, maxScrolls, direction) {
+    direction = direction || "up";
+
+    let collectedSet = new Set();
+    let collectedNodes = [];
+    let lastPageSnapshot = "";
+
+    for (let scrollCount = 0; scrollCount <= maxScrolls; scrollCount++) {
+        if (!uiObject.exists()) {
+            log("collectScrollableChildren: uiObject已消失，终止");
+            break;
+        }
+
+        // 遍历uiObject的直接子节点
+        let currentNodes = uiObject.children().filter(child => filterFn(child));
+
+        currentNodes.forEach(node => {
+            let nodeId = getNodeUniqueId(node);
+            if (!collectedSet.has(nodeId)) {
+                collectedSet.add(nodeId);
+                collectedNodes.push(node);
+            }
+        });
+
+        // 判断是否滚动到底（两次页面内容完全相同说明到底）
+        let currentPageSnapshot = currentNodes.map(node => getNodeUniqueId(node)).join("-");
+        if (currentPageSnapshot === lastPageSnapshot) {
+            log("collectScrollableChildren: 滚动到底部，内容无变化，终止");
+            break;
+        } else {
+            lastPageSnapshot = currentPageSnapshot;
+        }
+
+        if (scrollCount < maxScrolls) {
+            scrollOneStep(uiObject, direction, 300);
+        }
+    }
+
+    return collectedNodes;
+}
+
+/**
+ * 生成节点唯一标识符，避免重复收集
+ */
+function getNodeUniqueId(node) {
+    return `${node.id() || ""}-${node.text() || ""}-${node.desc() || ""}`;
+}
+
+/**
+ * 单次滚动一个uiObject容器，高度为uiObject的自身高度。
+ * @param {UiObject} uiObject - 可滚动的容器控件
+ * @param {string} direction - 滚动方向 ("up"|"down")
+ * @param {number} duration - 滚动时长（毫秒）
+ */
+function scrollOneStep(uiObject, direction, duration) {
+    direction = direction || "up";
+    duration = duration || 500;
+    if (!uiObject || !uiObject.scrollable()) {
+        log("scrollOneStep: 无效或不可滚动的uiObject");
+        return false;
+    }
+
+    let bounds = uiObject.bounds();
+    let startX = (bounds.left + bounds.right) / 2;
+    let startY, endY;
+
+    if (direction === "down") {
+        startY = bounds.bottom - 10;
+        endY = bounds.top + 10;
+    } else if (direction === "up") {
+        startY = bounds.top + 10;
+        endY = bounds.bottom - 10;
+    } else {
+        log("scrollOneStep: 无效的direction参数");
+        return false;
+    }
+
+    swipe(startX, startY, startX, endY, duration);
+    sleep(500);  // 稍等内容加载
+    return true;
+}
+
+
 module.exports = {
     swipeUpScreens,
-    swipeUpFraction
+    swipeUpFraction,
+    collectScrollableChildren,
+    scrollOneStep
 };
