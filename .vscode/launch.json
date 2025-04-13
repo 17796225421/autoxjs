@@ -4,9 +4,10 @@
             "type": "autojs",
             "request": "launch",
             "stopOnEntry": true,
-            "device": "daacb36487122d9c",
-            "name": "[Auto.js Pro调试]HUAWEI VTR-AL00 daacb36487122d9c"
+            "device": "e3514895db9a664d",
+            "name": "[Auto.js Pro调试]HUAWEI VTR-AL00 e3514895db9a664d"
         }
     ]
+
 
 }

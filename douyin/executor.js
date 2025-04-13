@@ -49,14 +49,14 @@ function executeActionPlan(actionPlan) {
 function doLike(参数) {
     let 是否点赞 = 参数.是否点赞;
     if (是否点赞) {
-        safeClick(descContains("点赞").findOne(), "点赞");
+        safeClick(descContains("点赞").findOnce(), "点赞");
     }
 }
 
 function doFavorite(参数) {
     let 是否收藏 = 参数.是否收藏;
     if (是否收藏) {
-        safeClick(descContains("收藏").findOne(), "收藏");
+        safeClick(descContains("收藏").findOnce(), "收藏");
     }
 }
 
@@ -72,7 +72,7 @@ function doShare(参数) {
     let 是否转发 = 参数.是否转发;
     let 想法 = 参数.想法;
     if (是否转发) {
-        safeClick(descContains("分享").findOne(), "分享");
+        safeClick(descContains("分享").findOnce(), "分享");
         safeClick(text("转发到日常").findOnce(0).parent().parent(), "转发到日常");
         safeInput(className("android.widget.EditText").findOnce(0), 想法, "想法");
         safeClick(text("转发").findOnce(0).parent(), "转发");
@@ -82,7 +82,7 @@ function doShare(参数) {
 function dorecommend(参数) {
     let 是否推荐 = 参数.是否推荐;
     if (是否推荐) {
-        safeClick(descContains("分享").findOne(), "分享");
+        safeClick(descContains("分享").findOnce(), "分享");
         safeClick(text("推荐").findOnce(0).parent().parent(), "推荐");
     }
 }
@@ -94,7 +94,7 @@ function doComment(参数) {
     let 评论是否点赞 = 参数.评论是否点赞;
     let 评论是否不喜欢 = 参数.评论是否不喜欢;
     // if (是否评论) {
-    //     safeClick(descContains("分享").findOne(), "分享");
+    //     safeClick(descContains("分享").findOnce(), "分享");
     //     safeClick(text("推荐").findOnce(0).parent().parent(), "推荐");
     // }
 }
@@ -105,7 +105,7 @@ function doReplyFirstComment(参数) {
     let 回复内容 = 参数.回复内容;
     let 是否表情 = 参数.是否表情;
     // if (是否回复评论) {
-    //     safeClick(descContains("分享").findOne(), "分享");
+    //     safeClick(descContains("分享").findOnce(), "分享");
     //     safeClick(text("推荐").findOnce(0).parent().parent(), "推荐");
     // }
 }

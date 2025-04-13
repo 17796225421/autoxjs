@@ -9,6 +9,7 @@
 let { collectScrollableChildren, scrollOneStep } = require("./utils/swipeUtils.js");
 let { safeClick } = require("./utils/clickUtils.js");
 let { findTextByOcr } = require("./utils/ocr.js");
+
 /**
  * 汇总感知数据结构
  *
@@ -42,7 +43,7 @@ function collectInfo() {
  */
 function collectVideoInfo() {
     log("【Perception】收集视频信息...");
-    let descElement = id("desc").findOne(3000);
+    let descElement = id("desc").findOnce(3000);
     return { desc: descElement ? descElement.text() : "" };
 }
 
@@ -63,8 +64,8 @@ function collectFirstComment() {
     log("【Perception】收集首条评论及回复...");
 
     // 点击进入评论区
-    safeClick(descContains("评论").findOne().parent(), "评论区");
-    safeClick(descContains("放大评论区").findOne(), "放大评论区");
+    safeClick(descContains("评论").findOnce().parent(), "评论区");
+    safeClick(descContains("放大评论区").findOnce(), "放大评论区");
 
     let commentListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);
 
@@ -86,7 +87,8 @@ function collectFirstComment() {
     let replies = [];
     if (replyListView) {
         replyListView.children().forEach(replyNode => {
-            let replyContent = replyNode.findOne(id("content"))?.text() || "";
+            let contentNode = replyNode.findOnce(id("content"));
+            let replyContent = contentNode ? contentNode.text() : "";
             if (replyContent) {
                 replies.push({ content: replyContent });
             }
@@ -115,18 +117,24 @@ function collectFirstComment() {
 function collectCommentInfo() {
     log("【Perception】收集评论列表...");
     // 点击进入评论区
-    safeClick(descContains("评论").findOne().parent(), "评论区");
-    safeClick(descContains("放大评论区").findOne(), "放大评论区");
+    safeClick(descContains("评论").findOnce().parent(), "评论区");
+    safeClick(descContains("放大评论区").findOnce(), "放大评论区");
 
     let commentListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);
 
-    let commentNodes = collectScrollableChildren(commentListView,
-        node => node.id() === "esx");
+    let commentNodes = collectScrollableChildren(
+        commentListView,
+        node => node.id() === "esx"
+    );
 
     let comments = [];
     commentNodes.forEach(node => {
-        let username = node.findOne(id("title"))?.text() || "未知";
-        let content = node.findOne(id("content"))?.text() || "";
+        let titleNode = node.findOnce(id("title"));
+        let username = titleNode ? titleNode.text() : "未知";
+
+        let contentNode = node.findOnce(id("content"));
+        let content = contentNode ? contentNode.text() : "";
+
         if (content) {
             comments.push({ username, content });
         }
@@ -150,50 +158,53 @@ function collectCommentInfo() {
  */
 function collectChatInfo(chatNameList) {
     log("【Perception】收集单聊信息...");
-    safeClick(text("消息").findOne(), "消息Tab");
+    safeClick(text("消息").findOnce(), "消息Tab");
 
     let chats = [];
-    let chatList = className("android.recyclerview.widget.RecyclerView").findOne().children();
+    let chatList = className("android.recyclerview.widget.RecyclerView").findOnce().children();
 
-
-    chatList = collectScrollableChildren(chatList,
+    chatList = collectScrollableChildren(
+        chatList,
         node => {
-            let titleNode = node.findOne(id("tv_title"));
-            return titleNode && !chatNameList.includes(titleNode.text());
+            let titleNode = node.findOnce(id("tv_title"));
+            if (titleNode) {
+                let t = titleNode.text();
+                return !chatNameList.includes(t);
+            }
+            return false;
         }
     );
+
     chatList.forEach(node => {
-        let title = node.findOne(id("tv_title"))?.text() || "未知";
-        safeClick(text(title).findOne(), "聊天框");
+        let titleNode = node.findOnce(id("tv_title"));
+        let title = titleNode ? titleNode.text() : "未知";
+
+        // 打开单聊
+        safeClick(text(title).findOnce(), "聊天框");
 
         let commentListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);
-
         let messages = [];
-        let messageNodes = collectScrollableChildren(commentListView, node => true);
+
+        let messageNodes = collectScrollableChildren(commentListView, item => true);
         let isMe = true;
-        messageNodes.forEach(node => {
-            let avatar = node.findOne(className("android.widget.Button"));
-            if (avatar) {
-                isMe = avatar.bounds.left > 500;
+        messageNodes.forEach(msg => {
+            let senderNode = msg.findOnce(id("message_author"));
+            let senderText = senderNode ? senderNode.text() : "";
+
+            // 判断是否自己发送
+            if (senderText && senderText.includes("我")) {
+                isMe = true;
+            } else {
+                isMe = false;
             }
-            let content = node.findOne(className("android.widget.TextView").id(content_layout)).text();
-            messages.push({ username, content });
-        });
-    });
 
+            let contentNode = msg.findOnce(id("message_content"));
+            let content = contentNode ? contentNode.text() : "";
 
-    chatList.forEach(chat => {
-        safeClick(chat, "打开单聊");
-        let messages = [];
-
-        className("androidx.recyclerview.widget.RecyclerView").scrollable().findOne().children().forEach(msg => {
-            let senderText = msg.findOne(id("message_author"))?.text() || "";
-            let isMe = senderText.includes("我");
-            let content = msg.findOne(id("message_content"))?.text() || "";
             messages.push({ isMe, content });
         });
 
-        chats.push({ messages });
+        chats.push({ title, messages });
         back();
     });
 
@@ -211,18 +222,24 @@ function collectChatInfo(chatNameList) {
  */
 function collectGroupChatInfo(chatNameList) {
     log("【Perception】收集群聊信息...");
-    safeClick(text("群聊").findOne(), "群聊Tab");
+    safeClick(text("群聊").findOnce(), "群聊Tab");
 
     let messages = [];
-    let groupList = className("android.recyclerview.widget.RecyclerView").findOne().children();
+    let groupList = className("android.recyclerview.widget.RecyclerView").findOnce().children();
 
     groupList.forEach(group => {
         safeClick(group, "打开群聊");
 
-        className("androidx.recyclerview.widget.RecyclerView").scrollable().findOne().children().forEach(msg => {
-            let senderText = msg.findOne(id("message_author"))?.text() || "";
+        className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce().children().forEach(msg => {
+            // let senderText = msg.findOnce(id("message_author"))?.text() || "";
+            let senderNode = msg.findOnce(id("message_author"));
+            let senderText = senderNode ? senderNode.text() : "";
             let isMe = senderText.includes("我");
-            let content = msg.findOne(id("message_content"))?.text() || "";
+
+            // let content = msg.findOnce(id("message_content"))?.text() || "";
+            let contentNode = msg.findOnce(id("message_content"));
+            let content = contentNode ? contentNode.text() : "";
+
             messages.push({ isMe, content });
         });
 
@@ -234,20 +251,28 @@ function collectGroupChatInfo(chatNameList) {
 
 function collectChatNameList() {
     log("【Perception】收集群聊名称...");
-    safeClick(text("消息").findOne(), "消息Tab");
-    safeClick(desc("更多面板").findOne(), "更多面板");
-    safeClick(text("发起群聊").findOne(), "发起群聊");
-    safeClick(text("选择一个已有群聊").findOne(), "选择一个已有群聊");
-    let groupChatListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);
-    groupChatListView = collectScrollableChildren(groupChatListView, node => true);
+    safeClick(text("消息").findOnce(), "消息Tab");
+    safeClick(desc("更多面板").findOnce(), "更多面板");
+    safeClick(text("发起群聊").findOnce(), "发起群聊");
+    safeClick(textMatches(/(选择一个已有群聊|已加入的群聊)/).findOnce(0), "选择一个已有群聊");
+    let groupChatListView = className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
+    groupChatListView = collectScrollableChildren(groupChatListView,
+        node => {
+            let matchedNode = node.findOne(
+                className("android.widget.TextView").textMatches(/^.{2,}$/)
+            );
+            if (matchedNode) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+    );
     let groupChatNameList = [];
     groupChatListView.forEach(node => {
-        let matchedNode = node.findOne(textMatches(/^.{2,}$/));
-        if (matchedNode) {
-            return;
-        }
-        groupChatNameList.add(matchedNode.text());
+        groupChatNameList.push(node.findOne(textMatches(/^.{2,}$/)).text());
     });
+    log("✅最终收集到的群聊名称列表：", groupChatNameList);
     return groupChatNameList;
 }
 

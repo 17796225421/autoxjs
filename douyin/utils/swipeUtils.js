@@ -73,6 +73,7 @@ function swipeUpFraction(fraction, duration) {
  * @returns {UiObject[]} - 满足条件的不重复直接子节点列表
  */
 function collectScrollableChildren(uiObject, filterFn, maxScrolls, direction) {
+    maxScrolls = maxScrolls || 5;
     direction = direction || "up";
 
     let collectedSet = new Set();
@@ -80,13 +81,10 @@ function collectScrollableChildren(uiObject, filterFn, maxScrolls, direction) {
     let lastPageSnapshot = "";
 
     for (let scrollCount = 0; scrollCount <= maxScrolls; scrollCount++) {
-        if (!uiObject.exists()) {
-            log("collectScrollableChildren: uiObject已消失，终止");
-            break;
-        }
-
         // 遍历uiObject的直接子节点
         let currentNodes = uiObject.children().filter(child => filterFn(child));
+
+        log("【collectScrollableChildren】当前页的有效节点数量: " + currentNodes.length);
 
         currentNodes.forEach(node => {
             let nodeId = getNodeUniqueId(node);
@@ -114,10 +112,27 @@ function collectScrollableChildren(uiObject, filterFn, maxScrolls, direction) {
 }
 
 /**
- * 生成节点唯一标识符，避免重复收集
+ * 【强化版】生成节点唯一标识符，精细化确保节点唯一性
  */
 function getNodeUniqueId(node) {
-    return `${node.id() || ""}-${node.text() || ""}-${node.desc() || ""}`;
+    if (!node) return "null_node";
+
+    let idStr = node.id() || "no_id";
+    let textStr = node.text() || "no_text";
+    let descStr = node.desc() || "no_desc";
+    let className = node.className() || "no_class";
+    let packageName = node.packageName() || "no_package";
+    let drawingOrder = node.drawingOrder();
+    let depth = node.depth();
+    let indexInParent = node.indexInParent();
+
+    let rect = node.boundsInParent();
+    let x1 = rect.left;
+    let y1 = rect.top;
+    let x2 = rect.right;
+    let y2 = rect.bottom;
+
+    return `${packageName}|${className}|${idStr}|${textStr}|${descStr}|${drawingOrder}|${depth}|${indexInParent}|${x1},${y1},${x2},${y2}`;
 }
 
 /**

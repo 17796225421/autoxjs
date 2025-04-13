@@ -77,7 +77,7 @@ function getRandomFutureTime() {
  * @returns {boolean} 是否成功完成滑动（此处统一返回true表示完成，若要更准确可自行拓展判断）
  */
 function setPickerValueByCalculation(columnId, targetText) {
-    let columnUI = id(columnId).findOne(3000);
+    let columnUI = id(columnId).findOnce(3000);
     if (!columnUI) {
         log(`【setPickerValueByCalculation】未找到控件ID=${columnId}，无法执行`);
         return false;

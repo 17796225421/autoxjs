@@ -22,8 +22,8 @@ function mainLogic() {
  * @desc 感知决策执行
  */
 function 感知决策执行() {
-    closeApp("抖音");
-    openApp("抖音");
+    // closeApp("抖音");
+    // openApp("抖音");
     // 1. 感知
     let perceivedData = collectInfo();
     // 2. 决策
