@@ -6,7 +6,7 @@
  * 以及推广金银珠宝首饰等业务，精准吸引兼职赚钱和高价值消费人群。
  * 基于 AutoJS + LLM 智能决策，支持多号、多App自动化引流养号
  */
-let { collectScrollableChildren, scrollOneStep } = require("./utils/swipeUtils.js");
+let { collectScrollableChildren, scrollOneStep, swipeUpVideoNatural } = require("./utils/swipeUtils.js");
 let { safeClick } = require("./utils/clickUtils.js");
 let { findTextByOcr } = require("./utils/ocr.js");
 
@@ -23,6 +23,15 @@ let { findTextByOcr } = require("./utils/ocr.js");
 function collectInfo() {
     log("【Perception】整合感知数据...");
 
+    while (true) {
+        if (checkValid()) {
+            log("校验视频成功");
+            break;
+        } else {
+            swipeUpVideoNatural();
+        }
+    }
+
     let chatNameList = collectChatNameList();
     let perceptionData = {
         videoInfo: collectVideoInfo(),
@@ -36,6 +45,18 @@ function collectInfo() {
     return perceptionData;
 }
 
+function checkValid() {
+    log("【Perception】校验视频...");
+    safeClick(descContains("评论").findOnce().parent(), "评论区");
+    safeClick(descContains("评论区").findOnce(0), "放大评论区");
+
+    let commentListView = className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
+    let valid = commentListView.child(1).findOne(textContains("展开")) !== null;
+    back();
+    sleep(5000);
+    return valid;
+}
+
 /**
  * 视频信息结构体
  * @typedef {Object} VideoInfo
@@ -43,8 +64,10 @@ function collectInfo() {
  */
 function collectVideoInfo() {
     log("【Perception】收集视频信息...");
-    let descElement = id("desc").findOnce(3000);
-    return { desc: descElement ? descElement.text() : "" };
+    let descElement = id("desc").findOnce();
+    let desc = descElement ? descElement.text() : ""
+    log("视频信息：" + desc)
+    return { desc: desc };
 }
 
 /**
@@ -65,14 +88,14 @@ function collectFirstComment() {
 
     // 点击进入评论区
     safeClick(descContains("评论").findOnce().parent(), "评论区");
-    safeClick(descContains("放大评论区").findOnce(), "放大评论区");
+    safeClick(descContains("评论区").findOnce(0), "放大评论区");
 
-    let commentListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);
+    let commentListView = className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
 
     // 获取评论区首条评论
     let firstCommentNode = commentListView.child(0);
-    let username = firstCommentNode.child(1).child(2).text();
-    let content = firstCommentNode.child(1).child(3).text();
+    let username = firstCommentNode.findOne(id("title")).text();
+    let content = firstCommentNode.findOne(id("content")).text();
 
     // 点击首条评论展开回复
     safeClick(commentListView.child(1), "展开首条评论回复");
@@ -250,6 +273,7 @@ function collectGroupChatInfo(chatNameList) {
 }
 
 function collectChatNameList() {
+    return "1";
     log("【Perception】收集群聊名称...");
     safeClick(text("消息").findOnce(), "消息Tab");
     safeClick(desc("更多面板").findOnce(), "更多面板");
@@ -273,6 +297,11 @@ function collectChatNameList() {
         groupChatNameList.push(node.findOne(textMatches(/^.{2,}$/)).text());
     });
     log("✅最终收集到的群聊名称列表：", groupChatNameList);
+    back();
+    sleep(5000);
+    back();
+    sleep(5000);
+    safeClick(text("首页").findOnce(), "消息Tab");
     return groupChatNameList;
 }
 

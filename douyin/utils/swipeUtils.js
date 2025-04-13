@@ -169,10 +169,79 @@ function scrollOneStep(uiObject, direction, duration) {
     return true;
 }
 
+/**
+ * @desc 专门用于模拟人工真实观看短视频的上滑手势
+ *       随机化滑动轨迹、速度、起止点，更加真实
+ *       最大程度防止被平台识别为机器行为
+ *
+ * @param {number} [duration=随机(300~800)] - 滑动持续时间(毫秒)，模拟人手随机快慢
+ * @param {number} [pause=随机(2000~6000)] - 滑动后停顿时间(毫秒)，模拟人类观看视频时长
+ */
+function swipeUpVideoNatural(duration, pause) {
+    duration = duration || random(300, 800);
+    pause = pause || random(2000, 6000);
+
+    const w = device.width;
+    const h = device.height;
+
+    // 随机起始和结束坐标，模拟真实的上滑观看视频习惯
+    let startX = random(w * 0.3, w * 0.7);
+    let startY = random(h * 0.75, h * 0.85);
+    let endX = startX + random(-50, 50); // 微小的横向位移
+    let endY = random(h * 0.2, h * 0.35);
+
+    // 执行曲线滑动，最大程度拟合真实用户手指滑动弧线
+    curveSwipe(startX, startY, endX, endY, duration);
+
+    sleep(pause);  // 模拟观看视频的随机时长
+}
+
+/**
+ * @desc 执行曲线滑动（贝塞尔曲线模拟）
+ *       通过中间随机控制点构造弧线轨迹，更像人工滑动
+ *
+ * @param {number} x1 - 起始X坐标
+ * @param {number} y1 - 起始Y坐标
+ * @param {number} x2 - 结束X坐标
+ * @param {number} y2 - 结束Y坐标
+ * @param {number} duration - 滑动持续时间
+ */
+function curveSwipe(x1, y1, x2, y2, duration) {
+    const controlX = (x1 + x2) / 2 + random(-100, 100);
+    const controlY = (y1 + y2) / 2 + random(-100, 100);
+
+    const points = bezierCurve([x1, y1], [controlX, controlY], [x2, y2], 50);
+    gesture(duration, points);
+}
+
+/**
+ * @desc 贝塞尔曲线坐标生成函数
+ * @param {number[]} start - 起点[x,y]
+ * @param {number[]} control - 控制点[x,y]
+ * @param {number[]} end - 终点[x,y]
+ * @param {number} segments - 曲线分段数量
+ * @returns {Array} 坐标点数组，用于gesture函数
+ */
+function bezierCurve(start, control, end, segments) {
+    const points = [];
+    for (let i = 0; i <= segments; i++) {
+        let t = i / segments;
+        let x = Math.pow(1 - t, 2) * start[0] +
+                2 * (1 - t) * t * control[0] +
+                Math.pow(t, 2) * end[0];
+        let y = Math.pow(1 - t, 2) * start[1] +
+                2 * (1 - t) * t * control[1] +
+                Math.pow(t, 2) * end[1];
+        points.push([x, y]);
+    }
+    return points;
+}
+
 
 module.exports = {
     swipeUpScreens,
     swipeUpFraction,
     collectScrollableChildren,
-    scrollOneStep
+    scrollOneStep,
+    swipeUpVideoNatural
 };
