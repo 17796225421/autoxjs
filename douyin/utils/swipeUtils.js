@@ -66,13 +66,13 @@ function swipeUpFraction(fraction, duration) {
 
 /**
  * 动态滚动并收集满足过滤函数的所有不重复子节点
- * @param {UiObject} uiObject - 要滚动收集的容器控件
+ * @param {function(): UiObject} uiObjectFn - 可滚动的容器控件
  * @param {function(UiObject): boolean} filterFn - 自定义过滤函数，决定是否收集某节点
  * @param {number} maxScrolls - 最大滚动次数
  * @param {string} direction - 滚动方向 ("up"|"down")
  * @returns {UiObject[]} - 满足条件的不重复直接子节点列表
  */
-function collectScrollableChildren(uiObject, filterFn, maxScrolls, direction) {
+function collectScrollableChildren(uiObjectFn, filterFn, maxScrolls, direction) {
     maxScrolls = maxScrolls || 5;
     direction = direction || "up";
 
@@ -82,7 +82,7 @@ function collectScrollableChildren(uiObject, filterFn, maxScrolls, direction) {
 
     for (let scrollCount = 0; scrollCount <= maxScrolls; scrollCount++) {
         // 遍历uiObject的直接子节点
-        let currentNodes = uiObject.children().filter(child => filterFn(child));
+        let currentNodes = uiObjectFn().children().filter(child => filterFn(child));
 
         log("【collectScrollableChildren】当前页的有效节点数量: " + currentNodes.length);
 
@@ -104,7 +104,8 @@ function collectScrollableChildren(uiObject, filterFn, maxScrolls, direction) {
         }
 
         if (scrollCount < maxScrolls) {
-            scrollOneStep(uiObject, direction, 300);
+            scrollOneStep(uiObjectFn(), direction, 300);
+            sleep(5000);
         }
     }
 
@@ -153,10 +154,10 @@ function scrollOneStep(uiObject, direction, duration) {
     let startX = (bounds.left + bounds.right) / 2;
     let startY, endY;
 
-    if (direction === "down") {
+    if (direction === "up") {
         startY = bounds.bottom - 10;
         endY = bounds.top + 10;
-    } else if (direction === "up") {
+    } else if (direction === "down") {
         startY = bounds.top + 10;
         endY = bounds.bottom - 10;
     } else {
@@ -236,6 +237,8 @@ function bezierCurve(start, control, end, segments) {
     }
     return points;
 }
+
+
 
 
 module.exports = {

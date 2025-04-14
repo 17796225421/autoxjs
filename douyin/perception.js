@@ -87,7 +87,7 @@ function collectFirstComment() {
     log("【Perception】收集首条评论及回复...");
 
     // 点击进入评论区
-    safeClick(descContains("评论").findOnce().parent(), "评论区");
+    safeClick(descContains("评论").findOnce(), "评论区");
     safeClick(descContains("评论区").findOnce(0), "放大评论区");
 
     let commentListView = className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
@@ -104,17 +104,23 @@ function collectFirstComment() {
     safeClick(findTextByOcr("展开更多")[0], "展开更多");
     scrollOneStep(commentListView, "down");
 
-    let replyListView = collectScrollableChildren(commentListView,
-        node => node.id() === "k4=");
+    commentListView = className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
+    let replyListView = collectScrollableChildren(
+        () => className("androidx.recyclerview.widget.RecyclerView").findOnce(0),
+        node => {
+            log(node.id());
+            if (node.id() === "com.ss.android.ugc.aweme:id/k4=") {
+                return true;
+            } else {
+                return false;
+            }
+        }
+    );
 
     let replies = [];
     if (replyListView) {
-        replyListView.children().forEach(replyNode => {
-            let contentNode = replyNode.findOnce(id("content"));
-            let replyContent = contentNode ? contentNode.text() : "";
-            if (replyContent) {
-                replies.push({ content: replyContent });
-            }
+        replyListView.forEach(replyNode => {
+            replies.push({ content: replyNode.findOne(id("content")).text() });
         });
     } else {
         log("【Perception】未发现回复内容");
@@ -203,7 +209,7 @@ function collectChatInfo(chatNameList) {
         let title = titleNode ? titleNode.text() : "未知";
 
         // 打开单聊
-        safeClick(text(title).findOnce(), "聊天框");
+        safeClick(node, "聊天框");
 
         let commentListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);
         let messages = [];
@@ -280,7 +286,8 @@ function collectChatNameList() {
     safeClick(text("发起群聊").findOnce(), "发起群聊");
     safeClick(textMatches(/(选择一个已有群聊|已加入的群聊)/).findOnce(0), "选择一个已有群聊");
     let groupChatListView = className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
-    groupChatListView = collectScrollableChildren(groupChatListView,
+    groupChatListView = collectScrollableChildren(
+        () => className("androidx.recyclerview.widget.RecyclerView").findOnce(0),
         node => {
             let matchedNode = node.findOne(
                 className("android.widget.TextView").textMatches(/^.{2,}$/)
