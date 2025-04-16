@@ -6,7 +6,7 @@
  * 以及推广金银珠宝首饰等业务，精准吸引兼职赚钱和高价值消费人群。
  * 基于 AutoJS + LLM 智能决策，支持多号、多App自动化引流养号
  */
-let { collectScrollableChildren, scrollOneStep, swipeUpVideoNatural } = require("./utils/swipeUtils.js");
+let { collectScrollableChildren, scrollOneStep, swipeUpVideoNatural, buildOffsetTable, locateTargetObject } = require("./utils/swipeUtils.js");
 let { safeClick } = require("./utils/clickUtils.js");
 let { findTextByOcr } = require("./utils/ocr.js");
 
@@ -90,7 +90,8 @@ function collectFirstComment() {
     safeClick(descContains("评论").findOnce(), "评论区");
     safeClick(descContains("评论区").findOnce(0), "放大评论区");
 
-    let commentListView = className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
+    let commentListViewFn = () => className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
+    let commentListView = commentListViewFn();
 
     // 获取评论区首条评论
     let firstCommentNode = commentListView.child(0);
@@ -104,11 +105,11 @@ function collectFirstComment() {
     safeClick(findTextByOcr("展开更多")[0], "展开更多");
     scrollOneStep(commentListView, "down");
 
-    commentListView = className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
+    let offsetTable = buildOffsetTable(commentListViewFn, 10);
+    commentListView = commentListViewFn();
     let replyListView = collectScrollableChildren(
-        () => className("androidx.recyclerview.widget.RecyclerView").findOnce(0),
+        commentListViewFn,
         node => {
-            log(node.id());
             if (node.id() === "com.ss.android.ugc.aweme:id/k4=") {
                 return true;
             } else {
@@ -120,6 +121,7 @@ function collectFirstComment() {
     let replies = [];
     if (replyListView) {
         replyListView.forEach(replyNode => {
+            locateTargetObject(replyNode, commentListViewFn, offsetTable);
             replies.push({ content: replyNode.findOne(id("content")).text() });
         });
     } else {

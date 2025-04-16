@@ -11,7 +11,7 @@ let { makeDecision } = require("./decision.js");
 let { executeActionPlan } = require("./executor.js");
 
 global.hasCapturePermission = false;
-
+auto();
 mainLogic();
 
 function mainLogic() {
