@@ -6,7 +6,7 @@
  * 以及推广金银珠宝首饰等业务，精准吸引兼职赚钱和高价值消费人群。
  * 基于 AutoJS + LLM 智能决策，支持多号、多App自动化引流养号
  */
-let { collectScrollableChildren, scrollOneStep, swipeUpVideoNatural, buildOffsetTable, locateTargetObject } = require("./utils/swipeUtils.js");
+let { collectScrollableChildren,  collectScrollableChildrenKey,scrollOneStep, swipeUpVideoNatural, buildOffsetTable, locateTargetObject,serializeNodeForOffset } = require("./utils/swipeUtils.js");
 let { safeClick } = require("./utils/clickUtils.js");
 let { findTextByOcr } = require("./utils/ocr.js");
 
@@ -87,7 +87,7 @@ function collectFirstComment() {
     log("【Perception】收集首条评论及回复...");
 
     // 点击进入评论区
-    safeClick(descContains("评论").findOnce(), "评论区");
+    safeClick(descContains("评论").findOnce(0), "评论区");
     safeClick(descContains("评论区").findOnce(0), "放大评论区");
 
     let commentListViewFn = () => className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
@@ -107,10 +107,10 @@ function collectFirstComment() {
 
     let offsetTable = buildOffsetTable(commentListViewFn, 10);
     commentListView = commentListViewFn();
-    let replyListView = collectScrollableChildren(
+    let replyKeyList = collectScrollableChildrenKey(
         commentListViewFn,
         node => {
-            if (node.id() === "com.ss.android.ugc.aweme:id/k4=") {
+            if (node.id() === "com.ss.android.ugc.aweme:id/k4-") {
                 return true;
             } else {
                 return false;
@@ -119,10 +119,27 @@ function collectFirstComment() {
     );
 
     let replies = [];
-    if (replyListView) {
-        replyListView.forEach(replyNode => {
-            locateTargetObject(replyNode, commentListViewFn, offsetTable);
-            replies.push({ content: replyNode.findOne(id("content")).text() });
+    if (replyKeyList) {
+        replyKeyList.forEach(replyKey => {
+            locateTargetObject(replyKey, commentListViewFn, offsetTable);
+
+            // 一旦定位完成，可再次从 uiObjectFn() 查找当前屏幕中目标节点
+            let container = commentListViewFn();
+            if (!container) return;
+
+            let childNodes = container.children(); // childNodes 是 UiObjectCollection
+
+            // ② 遍历寻找目标 childNode
+            let childNode = null;
+            for (let i = 0; i < childNodes.size(); i++) {
+                let candidate = childNodes.get(i);
+                if (serializeNodeForOffset(candidate) === replyKey) {
+                    childNode = candidate;
+                    break;
+                }
+            }
+
+            replies.push({ content: childNode.findOne(id("content")).text() });
         });
     } else {
         log("【Perception】未发现回复内容");
