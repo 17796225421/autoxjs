@@ -83,6 +83,7 @@ function findTextByOcr(targetText) {
             return [];
         }
         global.hasCapturePermission = true;
+        sleep(5000);
     }
 
     let img = captureScreen();

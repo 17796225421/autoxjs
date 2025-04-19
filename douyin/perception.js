@@ -47,7 +47,7 @@ function collectInfo() {
 
 function checkValid() {
     log("【Perception】校验视频...");
-    safeClick(descContains("评论").findOnce().parent(), "评论区");
+    safeClick(descContains("评论").visibleToUser().findOnce(0), "评论区");
     safeClick(descContains("评论区").findOnce(0), "放大评论区");
 
     let commentListView = className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
@@ -87,7 +87,7 @@ function collectFirstComment() {
     log("【Perception】收集首条评论及回复...");
 
     // 点击进入评论区
-    safeClick(descContains("评论").findOnce(0), "评论区");
+    safeClick(descContains("评论").visibleToUser().findOnce(0), "评论区");
     safeClick(descContains("评论区").findOnce(0), "放大评论区");
 
     let commentListViewFn = () => className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
@@ -115,12 +115,14 @@ function collectFirstComment() {
             } else {
                 return false;
             }
-        }
+        },
+        Object.keys(offsetTable).length
     );
 
     let replies = [];
     if (replyKeyList) {
         replyKeyList.forEach(replyKey => {
+            log("raplyKey:"+ replyKey);
             locateTargetObject(replyKey, commentListViewFn, offsetTable);
 
             // 一旦定位完成，可再次从 uiObjectFn() 查找当前屏幕中目标节点
@@ -133,6 +135,7 @@ function collectFirstComment() {
             let childNode = null;
             for (let i = 0; i < childNodes.size(); i++) {
                 let candidate = childNodes.get(i);
+                log("serializeNodeForOffset(candidate):"+serializeNodeForOffset(candidate));
                 if (serializeNodeForOffset(candidate) === replyKey) {
                     childNode = candidate;
                     break;
@@ -165,7 +168,7 @@ function collectFirstComment() {
 function collectCommentInfo() {
     log("【Perception】收集评论列表...");
     // 点击进入评论区
-    safeClick(descContains("评论").findOnce().parent(), "评论区");
+    safeClick(descContains("评论").visibleToUser().findOnce(0), "评论区");
     safeClick(descContains("放大评论区").findOnce(), "放大评论区");
 
     let commentListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);

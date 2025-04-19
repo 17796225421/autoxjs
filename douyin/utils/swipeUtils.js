@@ -104,7 +104,7 @@ function collectScrollableChildren(uiObjectFn, filterFn, maxScrolls, direction) 
         }
 
         if (scrollCount < maxScrolls) {
-            scrollOneStep(uiObjectFn(), direction, 300);
+            scrollOneStep(uiObjectFn(), direction, 3000);
             sleep(5000);
         }
     }
@@ -113,56 +113,99 @@ function collectScrollableChildren(uiObjectFn, filterFn, maxScrolls, direction) 
 }
 
 /**
- * 动态滚动并收集满足过滤函数的所有不重复子节点 **Key**
- * 与 collectScrollableChildren 逻辑几乎一致，
- * 区别：返回值改为序列化 Key（字符串/整数），
- *      用 serializeNodeForOffset() 生成，方便 locateTargetObject() 直接使用。
+ * 动态滚动并收集满足过滤函数的所有不重复子节点【Key版】
+ * --------------------------------------------------------------------------------
+ * 【改动要点】：
+ *  1. 将原本的 maxScrolls 改为 maxCheckCount，用于限制“最大校验数量”；
+ *  2. uiObjectFn().children() 出来后，先与已有的 Set 做去重，计算本次实际新增节点数量；
+ *  3. 校验数量 += 新增节点数后，若超过 maxCheckCount 则提前结束滚动；
+ *  4. 再遍历新增节点，调用 filterFn，过滤通过者 push 进 collectedNodes。
  *
  * @param {function(): UiObject} uiObjectFn - 可滚动容器的 getter
- * @param {function(UiObject): boolean} filterFn - 节点过滤器
- * @param {number} [maxScrolls=5] - 最多滚动次数
- * @param {string} [direction="up"] - 滚动方向
+ * @param {function(UiObject): boolean} filterFn - 节点过滤函数
+ * @param {number} [maxCheckCount=50] - 最大校验数量（建议传入 offset 表大小）
+ * @param {string} [direction="up"] - 滚动方向 ("up"|"down")
  * @returns {Array<string|number>} 目标节点 Key 列表（按发现先后顺序）
  */
-function collectScrollableChildrenKey(uiObjectFn, filterFn, maxScrolls, direction) {
-    maxScrolls = maxScrolls || 5;
+function collectScrollableChildrenKey(uiObjectFn, filterFn, maxCheckCount, direction) {
+    // 默认参数
+    maxCheckCount = maxCheckCount || 50;
     direction = direction || "up";
 
-    let collectedSet = new Set();
-    let collectedNodes = [];
-    let lastPageSnapshot = "";
+    // 用于去重、统计
+    let collectedSet = new Set();          // 已收集节点的ID，用于去重
+    let collectedNodes = [];              // 收集到的序列化Key
+    let lastPageSnapshot = "";            // 用于检测是否翻到底
+    let checkedCount = 0;                 // 已校验节点总数
 
-    for (let scrollCount = 0; scrollCount <= maxScrolls; scrollCount++) {
-        // 遍历uiObject的直接子节点
-        let currentNodes = uiObjectFn().children().filter(child => filterFn(child));
+    let scrollIndex = 0;  // 记录滚动次数，用于日志查看
+    while (true) {
+        let container = uiObjectFn();
+        if (!container) {
+            log("【collectScrollableChildrenKey】uiObjectFn() 返回空，终止");
+            break;
+        }
 
-        log("【collectScrollableChildrenKey】当前页的有效节点数量: " + currentNodes.length);
+        // =========== 1. 获取当前页所有子节点 ===========
+        let childrenNodes = container.children();
+        if (!childrenNodes || childrenNodes.length === 0) {
+            log("【collectScrollableChildrenKey】当前页无子节点，终止");
+            break;
+        }
 
-        currentNodes.forEach(node => {
-            let nodeId = getNodeUniqueId(node);
-            if (!collectedSet.has(nodeId)) {
-                collectedSet.add(nodeId);
+        // =========== 2. 与已收集做去重，得到“本次新增节点” ===========
+        let newNodes = [];
+        for (let i = 0; i < childrenNodes.length; i++) {
+            let child = childrenNodes[i];
+            let childId = getNodeUniqueId(child);
+            if (!collectedSet.has(childId)) {
+                newNodes.push(child);
+                collectedSet.add(childId);
+            }
+        }
+
+        // 先统计本次“新增的节点数”
+        let addedCount = newNodes.length;
+        // 校验数量累加
+        checkedCount += addedCount;
+        log(`【collectScrollableChildrenKey】第${scrollIndex}次滚动/翻页，本次新增节点: ${addedCount}，累计校验数量: ${checkedCount}`);
+
+        // =========== 3. 如果校验数量超限，则直接退出 ===========
+        if (checkedCount > maxCheckCount) {
+            log(`【collectScrollableChildrenKey】累计校验数量(${checkedCount})已超最大限制(${maxCheckCount})，提前结束`);
+            // 这里可以 break，也可以在 break 前把最后一次的过滤结果加进去
+            // 下方第4步还要过滤再收集，所以继续往下走再 break
+        }
+
+        // =========== 4. 对“本次新增节点”逐个调用 filterFn，满足则加入结果 ===========
+        for (let node of newNodes) {
+            if (filterFn(node)) {
                 collectedNodes.push(serializeNodeForOffset(node));
             }
-        });
+        }
 
-        // 判断是否滚动到底（两次页面内容完全相同说明到底）
-        let currentPageSnapshot = currentNodes.map(node => getNodeUniqueId(node)).join("-");
+        // =========== 5. 判断本次页面快照与上一页是否相同，若相同说明到底了 ===========
+        let currentPageSnapshot = newNodes.map(node => getNodeUniqueId(node)).join("-");
         if (currentPageSnapshot === lastPageSnapshot) {
-            log("collectScrollableChildrenKey: 滚动到底部，内容无变化，终止");
+            log("【collectScrollableChildrenKey】内容无变化，可能已经滚到底，终止滚动");
             break;
-        } else {
-            lastPageSnapshot = currentPageSnapshot;
+        }
+        lastPageSnapshot = currentPageSnapshot;
+
+        // =========== 6. 如果已超过最大限制，也无须再滚动，终止循环 ===========
+        if (checkedCount > maxCheckCount) {
+            log("【collectScrollableChildrenKey】已达最大校验数量，无需继续滚动");
+            break;
         }
 
-        if (scrollCount < maxScrolls) {
-            scrollOneStep(uiObjectFn(), direction, 300);
-            sleep(5000);
-        }
+        // =========== 7. 否则继续滚动一页，进入下一个循环 ===========
+        scrollIndex++;
+        scrollOneStep(container, direction, 3000);
+        sleep(5000);  // 等待加载内容
     }
 
+    log(`【collectScrollableChildrenKey】收集结束，共得到符合条件的节点Key数量: ${collectedNodes.length}`);
     return collectedNodes;
-
 }
 
 /**
@@ -197,7 +240,7 @@ function getNodeUniqueId(node) {
  */
 function scrollOneStep(uiObject, direction, duration) {
     direction = direction || "up";
-    duration = duration || 500;
+    duration = duration || 2000;
     if (!uiObject || !uiObject.scrollable()) {
         log("scrollOneStep: 无效或不可滚动的uiObject");
         return false;
@@ -281,11 +324,11 @@ function bezierCurve(start, control, end, segments) {
     for (let i = 0; i <= segments; i++) {
         let t = i / segments;
         let x = Math.pow(1 - t, 2) * start[0] +
-                2 * (1 - t) * t * control[0] +
-                Math.pow(t, 2) * end[0];
+            2 * (1 - t) * t * control[0] +
+            Math.pow(t, 2) * end[0];
         let y = Math.pow(1 - t, 2) * start[1] +
-                2 * (1 - t) * t * control[1] +
-                Math.pow(t, 2) * end[1];
+            2 * (1 - t) * t * control[1] +
+            Math.pow(t, 2) * end[1];
         points.push([x, y]);
     }
     return points;
@@ -341,9 +384,9 @@ function buildOffsetTable(uiObjectFn, capacity, direction) {
     offsetTable[zeroKey] = 0;
 
     // 用于累计 offset 的临时变量
-    let lastOffsetUp   = 0;
+    let lastOffsetUp = 0;
     let lastOffsetDown = 0;
-    let lastHeightUp   = getNodeHeight(zeroNode);
+    let lastHeightUp = getNodeHeight(zeroNode);
     let lastHeightDown = getNodeHeight(zeroNode);
 
     // ============ 1. 滚动收集 =============
@@ -386,13 +429,13 @@ function buildOffsetTable(uiObjectFn, capacity, direction) {
         oldCount = total;
 
         if (scrollCount < maxScrollTimes) {
-            scrollOneStep(container, direction, 500);
+            scrollOneStep(container, direction, 3000);
             sleep(3000);
         }
         scrollCount++;
     }
 
-       // ============ 1.1 [改动] 退出循环后，再收集当前屏幕 =============
+    // ============ 1.1 [改动] 退出循环后，再收集当前屏幕 =============
     //    原因：避免最后一次 scroll 后没有再收集到屏幕上的节点，从而漏掉某些目标节点。
     container = uiObjectFn();
     if (container) {
@@ -460,14 +503,14 @@ function locateTargetObject(targetKey, uiObjectFn, offsetTable, direction) {
 
     let firstKey = serializeNodeForOffset(firstChild);
     if (!offsetTable.hasOwnProperty(firstKey)) {
-        log("【locateTargetObject】第一个子节点不在offset表中，无法定位");
+        log("【locateTargetObject】第一个子节点不在offset表中，无法定位" + firstKey);
         return;
     }
 
     // ---- 计算 offset 差 ----
     const offsetA = offsetTable[targetKey];
     const offsetB = offsetTable[firstKey];
-    const delta   = offsetA - offsetB;   // 正数=目标在下方，负数=目标在上方
+    const delta = offsetA - offsetB;   // 正数=目标在下方，负数=目标在上方
     log(`【locateTargetObject】delta=${delta}`);
 
     if (Math.abs(delta) < 1) {
@@ -478,7 +521,7 @@ function locateTargetObject(targetKey, uiObjectFn, offsetTable, direction) {
     // 👉 一次性滚屏
     const success = swipeInScrollableNode(container, -delta, 5000, 3000);
     log(`【locateTargetObject】一次性滚动完成，success=${success}`);
-  
+
     log("【locateTargetObject】定位结束");
 }
 
@@ -556,44 +599,54 @@ function swipeInScrollableNode(uiObject, deltaPx, duration, rest) {
         log("swipeInScrollableNode: 无效或不可滚动的 uiObject");
         return false;
     }
-    deltaPx    = Math.trunc(deltaPx);          // 保证整数
-    if (deltaPx === 0) return true;            // 不需要滚动
+    deltaPx = Math.trunc(deltaPx);
+    if (deltaPx === 0) return true;
 
     duration = duration || 500;
     rest     = rest     || 300;
 
-    const b       = uiObject.bounds();
-    const height  = b.height();
-    const maxStep = Math.floor(height * 0.9);  // 单段最大像素
+    const b        = uiObject.bounds();
+    const height   = b.height();
+    const maxStep  = Math.floor(height * 0.88);   // 每段 ≤88% 容器高
+    const margin   = 12;                          // 上下预留的缓冲
 
-    // 1. 计算需拆成几段
     let remain = deltaPx;
-    const sign = (remain > 0) ? 1 : -1;
+    const sign = remain > 0 ? 1 : -1;
+    let idx    = 0;
 
     while (sign * remain > 0) {
-        const step = sign * Math.min(Math.abs(remain), maxStep);
+        /* -------- 1) 计算本段 step（理想值） -------- */
+        let step = sign * Math.min(Math.abs(remain), maxStep);
 
-        // -------- 1.1 计算起止点（留出 10px 缓冲） --------
+        /* -------- 2) 计算起止点，必要时再“二次校正” step -------- */
         const startX = random(b.left + 8, b.right - 8);
+        let   startY, endY, maxMov;
 
-        let startY, endY;
-        if (step > 0) {
-            // 👉 向下滚动：手指下滑
-            startY = b.top  + 12;
+        if (step > 0) {                           // 👉 向下
+            startY = b.top + margin;
+            maxMov = b.bottom - margin - startY;  // 还能真正下滑的极限
+            if (Math.abs(step) > maxMov) step =  maxMov;  // 再校正
             endY   = startY + step;
-            endY   = Math.min(endY, b.bottom - 12);
-        } else {
-            // 👉 向上滚动：手指上滑
-            startY = b.bottom - 12;
-            endY   = startY + step;            // step 为负
-            endY   = Math.max(endY, b.top + 12);
+        } else {                                  // 👉 向上
+            startY = b.bottom - margin;
+            maxMov = startY - (b.top + margin);   // 还能真正上滑的极限
+            if (Math.abs(step) > maxMov) step = -maxMov;  // 再校正
+            endY   = startY + step;               // step 为负
         }
 
-        // -------- 1.2 曲线滑动 --------
+        /* -------- 3) 曲线滑动 -------- */
         curveSwipe(startX, startY, startX, endY, duration);
         sleep(rest);
 
-        remain -= step;
+        /* -------- 4) 用“实际位移”更新 remain -------- */
+        const actualStep = endY - startY;         // 向上负，向下正
+        remain -= actualStep;
+
+        log(`【swipeInScrollableNode】#${idx}  actual=${actualStep}  remain=${remain}`);
+        idx++;
+
+        // 收敛：像素很小或迭代过多就退出
+        if (Math.abs(remain) < 3 || idx > 15) break;
     }
     return true;
 }
