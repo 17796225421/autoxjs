@@ -290,8 +290,8 @@ function swipeUpVideoNatural(duration, pause) {
 }
 /**
  * @desc 【强化版】曲线滑动（多段随机中点 + 适度抖动 + 避免过小位移）
- *       尽量模拟真实用户手指在屏幕上的“弧形、晃动”滑动轨迹。
- * 
+ *       并在开头增加一个“第一阶段移动”，防止被识别成长按。
+ *
  * @param {number} x1        - 起始X坐标
  * @param {number} y1        - 起始Y坐标
  * @param {number} x2        - 结束X坐标
@@ -299,98 +299,114 @@ function swipeUpVideoNatural(duration, pause) {
  * @param {number} duration  - 滑动总时长(毫秒)，若传入0或不传则随机
  */
 function curveSwipe(x1, y1, x2, y2, duration) {
-    // =========== 1) 先保证最小移动距离，避免被识别为长按 ===========
+    // =========== 0) 新增第一阶段移动，避免被识别为长按 ===========
+    //     - 随机移动 100~200 像素
+    //     - 用时 500~1000 ms
+    //     - 让系统先判定为“滑动”而非长按
 
-    let dx = x2 - x1;
-    let dy = y2 - y1;
-    let distance = Math.sqrt(dx * dx + dy * dy);
+    let stage1Dist = random(100, 200);        // 第一阶段移动距离
+    let stage1Time = random(500, 1000);       // 第一阶段滑动时长
 
-    // 若距离太小(例如 < 120px)，自动增加一个随机偏移，让总距离≥某阈值
+    let dxTotal = x2 - x1;
+    let dyTotal = y2 - y1;
+    let totalDist = Math.sqrt(dxTotal * dxTotal + dyTotal * dyTotal);
+
+    if (totalDist > stage1Dist) {
+        // 计算第一阶段占比
+        let ratio1 = stage1Dist / totalDist;
+
+        // 第一阶段目标点
+        let x1_stage1 = x1 + dxTotal * ratio1;
+        let y1_stage1 = y1 + dyTotal * ratio1;
+
+        // 执行第一阶段手势 (只需简单两点线性即可)
+        gesture(stage1Time, [
+            [x1, y1],
+            [x1_stage1, y1_stage1]
+        ]);
+        // 暂停少许时间，进一步规避长按检测
+        sleep(random(50, 150));
+
+        // 将剩余距离变为“第二阶段”的新起点
+        x1 = x1_stage1;
+        y1 = y1_stage1;
+
+        // 重新计算剩余距离
+        dxTotal = x2 - x1;
+        dyTotal = y2 - y1;
+        totalDist = Math.sqrt(dxTotal * dxTotal + dyTotal * dyTotal);
+    }
+
+    // =========== 1) 保证最小移动距离，避免滑动过短 ===========
+
     let minDist = 120;
-    if (distance < minDist) {
-        let offset = minDist - distance;
-        // 给偏移增加一个随机方向(±)，防止所有小距离都朝同一方向补偿
-        let angle = Math.atan2(dy, dx);
+    if (totalDist < minDist) {
+        let offset = minDist - totalDist;
+        let angle = Math.atan2(dyTotal, dxTotal);
         let signRand = (random(0, 1) * 2 - 1); // +1或-1
         x2 = x2 + offset * Math.cos(angle) * signRand;
         y2 = y2 + offset * Math.sin(angle) * signRand;
-        dx = x2 - x1;
-        dy = y2 - y1;
-        distance = Math.sqrt(dx * dx + dy * dy);
+        dxTotal = x2 - x1;
+        dyTotal = y2 - y1;
+        totalDist = Math.sqrt(dxTotal * dxTotal + dyTotal * dyTotal);
     }
 
-    // =========== 2) 时长随机化：若未给定或传0，则随机一个合理范围 ===========
+    // =========== 2) 若未指定或传入duration=0，则随机一个合理时长 ===========
 
     if (!duration || duration <= 0) {
-        // 根据距离动态决定一个时长范围，避免速度过快过慢
-        // 例如距离在 120 ~ 800 之间，则时长大约在 400 ~ 1200 ms 间浮动
-        // 可以再加一些随机倍数系数
-        let base = Math.floor(distance * 1.2);     // 距离乘因子
-        duration = random(base, base + 600);       // 在 base ~ base+600 之间
-        duration = Math.max(400, duration);        // 最短不少于 400ms
+        let base = Math.floor(totalDist * 1.2);
+        duration = random(base, base + 600);
+        duration = Math.max(400, duration);
     } else {
-        // 用户指定了 duration，可再在 ±(15% ~ 25%) 范围内做细微随机
-        let jitterRatio = random(15, 25) / 100;
+        let jitterRatio = random(15, 25) / 100; // ±(15%~25%)随机抖动
         let jitter = Math.floor(duration * jitterRatio);
         duration = duration + random(-jitter, jitter);
-        // 确保不要变成负数
         if (duration < 300) duration = 300;
     }
 
-    // =========== 3) 多段随机中点：生成更复杂的贝塞尔轨迹 ===========
-    //  - 可以简单地拆分成 2~4 段，每段都以“二次/三次贝塞尔”生成若干插值点
-    //  - 也可以一次性用“多控制点贝塞尔”生成(方法较复杂)。此处就按多段多控制点的方式，简化实现。
+    // =========== 3) 多段随机中点(二次贝塞尔)构造弧形轨迹 ===========
 
-    let pointCountPerSegment = 15;  // 每段生成的插值点数量(越大轨迹越平滑)
+    let pointCountPerSegment = 15;   // 每段插值点数量
     let segmentCount = random(2, 4); // 分段数量(2~4随机)
-
     let allPoints = [];
-    let startX = x1, startY = y1;
-    let totalPointsNeeded = pointCountPerSegment * segmentCount;
+
+    let currStartX = x1;
+    let currStartY = y1;
+    let dx = x2 - x1;
+    let dy = y2 - y1;
 
     for (let s = 0; s < segmentCount; s++) {
-        // 该段的目标终点(最后一段用x2,y2,否则随机一个临时中点)
         let endX, endY;
         if (s === segmentCount - 1) {
             endX = x2;
             endY = y2;
         } else {
-            // 随机一个中间点，大致在 (start ~ x2, start ~ y2) 的矩形范围内
-            // 加一些额外偏移，用于制造“晃动”
-            let ratio = (s + 1) / segmentCount;   // 在 0~1 之间
+            let ratio = (s + 1) / segmentCount;
             endX = x1 + dx * ratio + random(-50, 50);
             endY = y1 + dy * ratio + random(-50, 50);
         }
 
-        // 随机控制点(加大随机幅度，让轨迹有明显弧度)
-        let ctrlX = (startX + endX) / 2 + random(-100, 100);
-        let ctrlY = (startY + endY) / 2 + random(-100, 100);
+        let ctrlX = (currStartX + endX) / 2 + random(-100, 100);
+        let ctrlY = (currStartY + endY) / 2 + random(-100, 100);
 
-        // 生成该段的插值点
         let segmentPoints = bezierCurve(
-            [startX, startY],
+            [currStartX, currStartY],
             [ctrlX, ctrlY],
             [endX, endY],
             pointCountPerSegment
         );
 
-        // 去掉首个点的重复（除非 s=0）
         if (s > 0 && segmentPoints.length > 0) {
             segmentPoints.shift();
         }
-        // 合并进 allPoints
         allPoints = allPoints.concat(segmentPoints);
 
-        // 更新下一个段的起点
-        startX = endX;
-        startY = endY;
+        currStartX = endX;
+        currStartY = endY;
     }
 
-    // =========== 4) 交给 gesture() 执行，完成弧线滑动 ===========
+    // =========== 4) 调用 gesture() 执行第二阶段曲线滑动 ===========
 
-    // 注意：Android 7 及以下 gesture() 可能不支持太多点，也可能需要拆成多次 gesture。
-    //       如果 allPoints.length 非常多，就可以根据系统版本来做分段执行。
-    // 这里示例中直接一次性调用。
     gesture(duration, allPoints);
 }
 
@@ -416,6 +432,7 @@ function bezierCurve(start, control, end, segments) {
     }
     return points;
 }
+
 
 
 /**
