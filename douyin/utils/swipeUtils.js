@@ -407,11 +407,11 @@ function bezierCurve(start, control, end, segments) {
     for (let i = 0; i <= segments; i++) {
         let t = i / segments;
         let x = (1 - t) * (1 - t) * start[0]
-              + 2 * (1 - t) * t * control[0]
-              + t * t * end[0];
+            + 2 * (1 - t) * t * control[0]
+            + t * t * end[0];
         let y = (1 - t) * (1 - t) * start[1]
-              + 2 * (1 - t) * t * control[1]
-              + t * t * end[1];
+            + 2 * (1 - t) * t * control[1]
+            + t * t * end[1];
         points.push([x, y]);
     }
     return points;
@@ -610,7 +610,14 @@ function locateTargetObject(targetKey, uiObjectFn, offsetTable, direction) {
     // ---- 计算 offset 差 ----
     const offsetA = offsetTable[targetKey];
     const offsetB = offsetTable[firstKey];
-    const delta = offsetA - offsetB;   // 正数=目标在下方，负数=目标在上方
+
+    let delta = offsetA - offsetB;   // 正数=目标在下方，负数=目标在上方
+
+    // firstChild可能只有少部分在屏幕内
+    let width = firstChild.boundsInParent().bottom - firstChild.boundsInParent().top;
+    let widthLook = firstChild.bounds().bottom - firstChild.bounds().top;
+    delta -= (width - widthLook);
+
     log(`【locateTargetObject】delta=${delta}`);
 
     if (Math.abs(delta) < 1) {
@@ -650,9 +657,9 @@ function serializeNodeForOffset(node) {
     /* ---------- 3. 唯一性加盐（必要时） ---------- */
     // 剥离数字后有可能只剩极短相同前缀，例如 “T:” “D:”；此时追加控件上下文
     if (noDigitStr.length < 3) {
-        let cls   = node.className() || "no_cls";
-        let b     = node.boundsInParent();
-        let bbox  = `${b.left},${b.top},${b.right},${b.bottom}`;
+        let cls = node.className() || "no_cls";
+        let b = node.boundsInParent();
+        let bbox = `${b.left},${b.top},${b.right},${b.bottom}`;
         noDigitStr = `${noDigitStr}|${cls}|${bbox}`;
     }
 
