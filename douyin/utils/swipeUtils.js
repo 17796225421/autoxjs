@@ -113,100 +113,96 @@ function collectScrollableChildren(uiObjectFn, filterFn, maxScrolls, direction) 
 }
 
 /**
- * 动态滚动并收集满足过滤函数的所有不重复子节点【Key版】
- * --------------------------------------------------------------------------------
- * 【改动要点】：
- *  1. 将原本的 maxScrolls 改为 maxCheckCount，用于限制“最大校验数量”；
- *  2. uiObjectFn().children() 出来后，先与已有的 Set 做去重，计算本次实际新增节点数量；
- *  3. 校验数量 += 新增节点数后，若超过 maxCheckCount 则提前结束滚动；
- *  4. 再遍历新增节点，调用 filterFn，过滤通过者 push 进 collectedNodes。
+ * 【强化版】动态滚动 + 收集符合条件的直接子节点 Key
+ * -----------------------------------------------
+ * 1) 终止条件（满足任一即刻退出）
+ *    A. stopFn(child) === true                 // 用户自定义：遇到目标即可停
+ *    B. collectedNodes.length >= capacity      // 收集已满
+ *    C. 本页快照 === 上页快照                  // 内容无变化，说明到底
  *
- * @param {function(): UiObject} uiObjectFn - 可滚动容器的 getter
- * @param {function(UiObject): boolean} filterFn - 节点过滤函数
- * @param {number} [maxCheckCount=50] - 最大校验数量（建议传入 offset 表大小）
- * @param {string} [direction="up"] - 滚动方向 ("up"|"down")
- * @returns {Array<string|number>} 目标节点 Key 列表（按发现先后顺序）
+ * 2) 参数说明
+ *    @param {function(): UiObject} uiObjectFn  - 返回可滚动容器
+ *    @param {function(UiObject): boolean} filterFn - 过滤函数：决定是否保存该节点
+ *    @param {function(UiObject): boolean} [stopFn] - 停止函数：遇到返回 true 即刻终止
+ *    @param {number}   [capacity=20]           - 最大收集数量
+ *    @param {string}   [direction="up"]        - 滚动方向
+ *    @returns {Array<string|number>}           - 符合条件的节点 Key 列表
+ *
+ * 3) 应用场景
+ *    - 自动化兼职项目“养号+引流”批量收集 UI 入口
+ *    - 金银珠宝首饰类 App 自动化浏览、筛选、留资
+ *    - 大模型 Agent + AutoJS 多号多 App 运营的核心滚动感知能力
  */
-function collectScrollableChildrenKey(uiObjectFn, filterFn, maxCheckCount, direction) {
-    // 默认参数
-    maxCheckCount = maxCheckCount || 50;
+function collectScrollableChildrenKey(uiObjectFn,
+    filterFn,
+    stopFn,
+    capacity,
+    direction) {
+
+    /* ---------- 默认值 ---------- */
+    capacity = capacity || 20;
     direction = direction || "up";
+    stopFn = stopFn || (() => false);
 
-    // 用于去重、统计
-    let collectedSet = new Set();          // 已收集节点的ID，用于去重
-    let collectedNodes = [];              // 收集到的序列化Key
-    let lastPageSnapshot = "";            // 用于检测是否翻到底
-    let checkedCount = 0;                 // 已校验节点总数
+    /* ---------- 状态变量 ---------- */
+    const collectedSet = new Set();   // 去重
+    const collectedNodes = [];          // 结果
+    let lastSnapshot = "";          // 用于检测“到底”
+    let pageIndex = 0;           // 仅做日志
 
-    let scrollIndex = 0;  // 记录滚动次数，用于日志查看
+    /* ---------- 主循环 ---------- */
     while (true) {
-        let container = uiObjectFn();
-        if (!container) {
-            log("【collectScrollableChildrenKey】uiObjectFn() 返回空，终止");
-            break;
-        }
 
-        // =========== 1. 获取当前页所有子节点 ===========
-        let childrenNodes = container.children();
-        if (!childrenNodes || childrenNodes.length === 0) {
-            log("【collectScrollableChildrenKey】当前页无子节点，终止");
-            break;
-        }
+        /* 1) 取容器 & 子节点 */
+        let children = uiObjectFn().children();
 
-        // =========== 2. 与已收集做去重，得到“本次新增节点” ===========
-        let newNodes = [];
-        for (let i = 0; i < childrenNodes.length; i++) {
-            let child = childrenNodes[i];
-            let childId = getNodeUniqueId(child);
-            if (!collectedSet.has(childId)) {
-                newNodes.push(child);
-                collectedSet.add(childId);
+        /* 2) 遍历直接子节点 */
+        let snapshotArr = [];   // 本页快照（无重复）
+        for (let i = 0; i < children.length; i++) {
+            let node = children[i];
+            let nodeId = getNodeUniqueId(node);
+
+            snapshotArr.push(nodeId);           // 构建快照
+
+            /* --- 去重 --- */
+            if (collectedSet.has(nodeId)) continue;
+            collectedSet.add(nodeId);
+
+            /* --- stopFn 判停 --- */
+            if (stopFn(node)) {
+                log("【collect2.0】stopFn 触发，提前结束");
+                return collectedNodes;          // 已收集的直接返回
             }
-        }
 
-        // 先统计本次“新增的节点数”
-        let addedCount = newNodes.length;
-        // 校验数量累加
-        checkedCount += addedCount;
-        log(`【collectScrollableChildrenKey】第${scrollIndex}次滚动/翻页，本次新增节点: ${addedCount}，累计校验数量: ${checkedCount}`);
-
-        // =========== 3. 如果校验数量超限，则直接退出 ===========
-        if (checkedCount > maxCheckCount) {
-            log(`【collectScrollableChildrenKey】累计校验数量(${checkedCount})已超最大限制(${maxCheckCount})，提前结束`);
-            // 这里可以 break，也可以在 break 前把最后一次的过滤结果加进去
-            // 下方第4步还要过滤再收集，所以继续往下走再 break
-        }
-
-        // =========== 4. 对“本次新增节点”逐个调用 filterFn，满足则加入结果 ===========
-        for (let node of newNodes) {
+            /* --- filterFn 判收 --- */
             if (filterFn(node)) {
                 collectedNodes.push(serializeNodeForOffset(node));
+                if (collectedNodes.length >= capacity) {
+                    log("【collect2.0】达到 capacity，上限收满");
+                    return collectedNodes;
+                }
             }
         }
 
-        // =========== 5. 判断本次页面快照与上一页是否相同，若相同说明到底了 ===========
-        let currentPageSnapshot = newNodes.map(node => getNodeUniqueId(node)).join("-");
-        if (currentPageSnapshot === lastPageSnapshot) {
-            log("【collectScrollableChildrenKey】内容无变化，可能已经滚到底，终止滚动");
+        /* 3) 底部判定 —— 快照比对 */
+        const currSnapshot = snapshotArr.join("-");
+        if (currSnapshot === lastSnapshot) {
+            log("【collect2.0】内容无变化，可能滚到底");
             break;
         }
-        lastPageSnapshot = currentPageSnapshot;
+        lastSnapshot = currSnapshot;
 
-        // =========== 6. 如果已超过最大限制，也无须再滚动，终止循环 ===========
-        if (checkedCount > maxCheckCount) {
-            log("【collectScrollableChildrenKey】已达最大校验数量，无需继续滚动");
-            break;
-        }
-
-        // =========== 7. 否则继续滚动一页，进入下一个循环 ===========
-        scrollIndex++;
-        scrollOneStep(container, direction, 3000);
-        sleep(5000);  // 等待加载内容
+        /* 4) 继续滚动 */
+        pageIndex++;
+        scrollOneStep(uiObjectFn(), direction, 3000);
+        sleep(4000);   // 视平台加载速度而定
     }
 
-    log(`【collectScrollableChildrenKey】收集结束，共得到符合条件的节点Key数量: ${collectedNodes.length}`);
+    /* ---------- 结束 ---------- */
+    log(`【collect2.0】完毕，共收集 ${collectedNodes.length} / ${capacity}`);
     return collectedNodes;
 }
+
 
 /**
  * 【强化版】生成节点唯一标识符，精细化确保节点唯一性
@@ -435,15 +431,16 @@ function buildOffsetTable(uiObjectFn, capacity, direction) {
         scrollCount++;
     }
 
-    // ============ 1.1 [改动] 退出循环后，再收集当前屏幕 =============
+    // ============ 1.1 [改动] 退出循环后，再额外收集：当前屏幕 + 连续滚动的后2屏 =============
     //    原因：避免最后一次 scroll 后没有再收集到屏幕上的节点，从而漏掉某些目标节点。
-    container = uiObjectFn();
-    if (container) {
-        let children = container.children();
+    //    希望一次多收集一些内容，以便应对可能的延迟加载或异步刷新。
+
+    function collectCurrentScreenNodes(container) {
+        if (!container) return;
+        let children = container.children() || [];
         if (direction === "down") {
             children = children.reverse();
         }
-
         for (let i = 0; i < children.length; i++) {
             let node = children[i];
             let key = serializeNodeForOffset(node);
@@ -463,6 +460,22 @@ function buildOffsetTable(uiObjectFn, capacity, direction) {
             }
         }
     }
+
+    // 第1次：收集当前屏幕
+    container = uiObjectFn();
+    collectCurrentScreenNodes(container);
+
+    // 第2次：滚动一屏后再收集
+    scrollOneStep(container, direction, 3000);
+    sleep(3000);
+    container = uiObjectFn();
+    collectCurrentScreenNodes(container);
+
+    // 第3次：再滚动一屏后再收集
+    scrollOneStep(container, direction, 3000);
+    sleep(3000);
+    container = uiObjectFn();
+    collectCurrentScreenNodes(container);
 
     log(`【buildOffsetTable】完成，已收集 ${Object.keys(offsetTable).length} 个节点`);
 
@@ -527,20 +540,36 @@ function locateTargetObject(targetKey, uiObjectFn, offsetTable, direction) {
 
 
 /**
- * @desc 【核心函数3】节点序列化，用于给“可滚动节点的直接子节点”做Key
- *       - 把自身及所有子孙节点的desc/text 拼接，做成字符串
- *       - 再通过哈希转为整数
- * @param {UiObject} node
- * @returns {number} 返回一个整数hash
+ * @desc 【核心函数3】【改】节点序列化 —— 去除所有阿拉伯数字
+ *       设计要点：
+ *       1) gatherAllTextAndDesc() 只做递归采集；所有规整化放在此函数完成，
+ *          避免在递归里多次重复执行正则。
+ *       2) ·\d· 与 ·\uFF10‑\uFF19· 同时剔除，兼容半角 / 全角。
+ *       3) 若数字剥离后文本极短（<3 字符），追加 “类名 + bounds” 保底。
+ *
+ * @param  {UiObject} node
  */
 function serializeNodeForOffset(node) {
-    let collected = gatherAllTextAndDesc(node);
-    // 将其拼成一个大字符串
-    let bigStr = collected.join("|");
-    return bigStr;
-    // 转为哈希整数
-    let hashVal = javaStringHashCode(bigStr);
-    return hashVal;
+    if (!node) return 0;
+
+    /* ---------- 1. 收集纯文本 ---------- */
+    let collectedArr = gatherAllTextAndDesc(node);      // ["T:09:30", "D:点击抢购" ...]
+    let bigStr = collectedArr.join("|");
+
+    /* ---------- 2. 过滤阿拉伯数字 ---------- */
+    // 同时去掉半角 0‑9 与全角 ０‑９；保留其它符号/中文/字母
+    let noDigitStr = bigStr.replace(/[\d\uFF10-\uFF19]/g, "");
+
+    /* ---------- 3. 唯一性加盐（必要时） ---------- */
+    // 剥离数字后有可能只剩极短相同前缀，例如 “T:” “D:”；此时追加控件上下文
+    if (noDigitStr.length < 3) {
+        let cls   = node.className() || "no_cls";
+        let b     = node.boundsInParent();
+        let bbox  = `${b.left},${b.top},${b.right},${b.bottom}`;
+        noDigitStr = `${noDigitStr}|${cls}|${bbox}`;
+    }
+
+    return noDigitStr;
 }
 
 /**
@@ -567,23 +596,6 @@ function gatherAllTextAndDesc(node) {
 }
 
 /**
- * @desc 简单模拟 Java String.hashCode() 的哈希函数
- *       让文本转为整数Key，避免直接拼接纯文本
- * @param {string} str
- * @returns {number} 
- */
-function javaStringHashCode(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        let c = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + c;
-        // JS中需要手动维持32位整数范围
-        hash |= 0;
-    }
-    return hash;
-}
-
-/**
  * @desc 在可滚动容器内一次性滚动指定距离
  *       Δ < 0 → 向上滚动（手指上滑）；Δ > 0 → 向下滚动（手指下滑）
  *       若 |Δ| > 容器高度，则自动拆分为多段，每段 ≤ 0.9 * height
@@ -603,16 +615,16 @@ function swipeInScrollableNode(uiObject, deltaPx, duration, rest) {
     if (deltaPx === 0) return true;
 
     duration = duration || 500;
-    rest     = rest     || 300;
+    rest = rest || 300;
 
-    const b        = uiObject.bounds();
-    const height   = b.height();
-    const maxStep  = Math.floor(height * 0.88);   // 每段 ≤88% 容器高
-    const margin   = 12;                          // 上下预留的缓冲
+    const b = uiObject.bounds();
+    const height = b.height();
+    const maxStep = Math.floor(height * 0.88);   // 每段 ≤88% 容器高
+    const margin = 12;                          // 上下预留的缓冲
 
     let remain = deltaPx;
     const sign = remain > 0 ? 1 : -1;
-    let idx    = 0;
+    let idx = 0;
 
     while (sign * remain > 0) {
         /* -------- 1) 计算本段 step（理想值） -------- */
@@ -620,18 +632,18 @@ function swipeInScrollableNode(uiObject, deltaPx, duration, rest) {
 
         /* -------- 2) 计算起止点，必要时再“二次校正” step -------- */
         const startX = random(b.left + 8, b.right - 8);
-        let   startY, endY, maxMov;
+        let startY, endY, maxMov;
 
         if (step > 0) {                           // 👉 向下
             startY = b.top + margin;
             maxMov = b.bottom - margin - startY;  // 还能真正下滑的极限
-            if (Math.abs(step) > maxMov) step =  maxMov;  // 再校正
-            endY   = startY + step;
+            if (Math.abs(step) > maxMov) step = maxMov;  // 再校正
+            endY = startY + step;
         } else {                                  // 👉 向上
             startY = b.bottom - margin;
             maxMov = startY - (b.top + margin);   // 还能真正上滑的极限
             if (Math.abs(step) > maxMov) step = -maxMov;  // 再校正
-            endY   = startY + step;               // step 为负
+            endY = startY + step;               // step 为负
         }
 
         /* -------- 3) 曲线滑动 -------- */

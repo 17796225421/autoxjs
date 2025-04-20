@@ -6,7 +6,7 @@
  * 以及推广金银珠宝首饰等业务，精准吸引兼职赚钱和高价值消费人群。
  * 基于 AutoJS + LLM 智能决策，支持多号、多App自动化引流养号
  */
-let { collectScrollableChildren,  collectScrollableChildrenKey,scrollOneStep, swipeUpVideoNatural, buildOffsetTable, locateTargetObject,serializeNodeForOffset } = require("./utils/swipeUtils.js");
+let { collectScrollableChildren, collectScrollableChildrenKey, scrollOneStep, swipeUpVideoNatural, buildOffsetTable, locateTargetObject, serializeNodeForOffset } = require("./utils/swipeUtils.js");
 let { safeClick } = require("./utils/clickUtils.js");
 let { findTextByOcr } = require("./utils/ocr.js");
 
@@ -47,10 +47,10 @@ function collectInfo() {
 
 function checkValid() {
     log("【Perception】校验视频...");
-    safeClick(descContains("评论").visibleToUser().findOnce(0), "评论区");
-    safeClick(descContains("评论区").findOnce(0), "放大评论区");
+    safeClick(descContains("评论").visibleToUser().findOnce(0), "评论");
+    safeClick(descContains("评论区").className("android.widget.ImageView").findOnce(0), "放大评论区");
 
-    let commentListView = className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
+    let commentListView = className("androidx.recyclerview.widget.RecyclerView").visibleToUser().findOnce(0);
     let valid = commentListView.child(1).findOne(textContains("展开")) !== null;
     back();
     sleep(5000);
@@ -87,10 +87,10 @@ function collectFirstComment() {
     log("【Perception】收集首条评论及回复...");
 
     // 点击进入评论区
-    safeClick(descContains("评论").visibleToUser().findOnce(0), "评论区");
-    safeClick(descContains("评论区").findOnce(0), "放大评论区");
+    safeClick(descContains("评论").visibleToUser().findOnce(0), "评论");
+    safeClick(descContains("评论区").className("android.widget.ImageView").findOnce(0), "放大评论区");
 
-    let commentListViewFn = () => className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
+    let commentListViewFn = () => className("androidx.recyclerview.widget.RecyclerView").visibleToUser().findOnce(0);
     let commentListView = commentListViewFn();
 
     // 获取评论区首条评论
@@ -116,13 +116,19 @@ function collectFirstComment() {
                 return false;
             }
         },
-        Object.keys(offsetTable).length
+        node => {
+            if (node.findOne(descContains("收起")) !== null) {
+                return true;
+            } else {
+                return false;
+            }
+        },
     );
 
     let replies = [];
     if (replyKeyList) {
         replyKeyList.forEach(replyKey => {
-            log("raplyKey:"+ replyKey);
+            log("raplyKey:" + replyKey);
             locateTargetObject(replyKey, commentListViewFn, offsetTable);
 
             // 一旦定位完成，可再次从 uiObjectFn() 查找当前屏幕中目标节点
@@ -135,7 +141,7 @@ function collectFirstComment() {
             let childNode = null;
             for (let i = 0; i < childNodes.size(); i++) {
                 let candidate = childNodes.get(i);
-                log("serializeNodeForOffset(candidate):"+serializeNodeForOffset(candidate));
+                log("serializeNodeForOffset(candidate):" + serializeNodeForOffset(candidate));
                 if (serializeNodeForOffset(candidate) === replyKey) {
                     childNode = candidate;
                     break;
@@ -168,10 +174,10 @@ function collectFirstComment() {
 function collectCommentInfo() {
     log("【Perception】收集评论列表...");
     // 点击进入评论区
-    safeClick(descContains("评论").visibleToUser().findOnce(0), "评论区");
-    safeClick(descContains("放大评论区").findOnce(), "放大评论区");
+    safeClick(descContains("评论").visibleToUser().findOnce(0), "评论");
+    safeClick(descContains("评论区").className("android.widget.ImageView").findOnce(), "放大评论区");
 
-    let commentListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);
+    let commentListView = className("androidx.recyclerview.widget.RecyclerView").visibleToUser().scrollable().findOnce(0);
 
     let commentNodes = collectScrollableChildren(
         commentListView,
@@ -233,7 +239,7 @@ function collectChatInfo(chatNameList) {
         // 打开单聊
         safeClick(node, "聊天框");
 
-        let commentListView = className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce(0);
+        let commentListView = className("androidx.recyclerview.widget.RecyclerView").visibleToUser().scrollable().findOnce(0);
         let messages = [];
 
         let messageNodes = collectScrollableChildren(commentListView, item => true);
@@ -281,7 +287,7 @@ function collectGroupChatInfo(chatNameList) {
     groupList.forEach(group => {
         safeClick(group, "打开群聊");
 
-        className("androidx.recyclerview.widget.RecyclerView").scrollable().findOnce().children().forEach(msg => {
+        className("androidx.recyclerview.widget.RecyclerView").visibleToUser().scrollable().findOnce().children().forEach(msg => {
             // let senderText = msg.findOnce(id("message_author"))?.text() || "";
             let senderNode = msg.findOnce(id("message_author"));
             let senderText = senderNode ? senderNode.text() : "";
@@ -307,9 +313,9 @@ function collectChatNameList() {
     safeClick(desc("更多面板").findOnce(), "更多面板");
     safeClick(text("发起群聊").findOnce(), "发起群聊");
     safeClick(textMatches(/(选择一个已有群聊|已加入的群聊)/).findOnce(0), "选择一个已有群聊");
-    let groupChatListView = className("androidx.recyclerview.widget.RecyclerView").findOnce(0);
+    let groupChatListView = className("androidx.recyclerview.widget.RecyclerView").visibleToUser().findOnce(0);
     groupChatListView = collectScrollableChildren(
-        () => className("androidx.recyclerview.widget.RecyclerView").findOnce(0),
+        () => className("androidx.recyclerview.widget.RecyclerView").visibleToUser().findOnce(0),
         node => {
             let matchedNode = node.findOne(
                 className("android.widget.TextView").textMatches(/^.{2,}$/)
