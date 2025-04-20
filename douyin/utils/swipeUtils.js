@@ -290,7 +290,7 @@ function swipeUpVideoNatural(duration, pause) {
 }
 /**
  * @desc 【强化版】曲线滑动（多段随机中点 + 适度抖动 + 避免过小位移）
- *       并在开头增加一个“第一阶段移动”，防止被识别成长按。
+ *       同时“第一阶段”并入一次性手势，避免分两次 gesture 分开滚动。
  *
  * @param {number} x1        - 起始X坐标
  * @param {number} y1        - 起始Y坐标
@@ -299,35 +299,33 @@ function swipeUpVideoNatural(duration, pause) {
  * @param {number} duration  - 滑动总时长(毫秒)，若传入0或不传则随机
  */
 function curveSwipe(x1, y1, x2, y2, duration) {
-    // =========== 0) 新增第一阶段移动，避免被识别为长按 ===========
-    //     - 随机移动 100~200 像素
-    //     - 用时 500~1000 ms
-    //     - 让系统先判定为“滑动”而非长按
-
-    let stage1Dist = random(100, 200);        // 第一阶段移动距离
-    let stage1Time = random(500, 1000);       // 第一阶段滑动时长
+    // =========== 0) 先计算第一阶段距离，避免被识别为长按 ===========
+    let stage1Dist = random(100, 200);   // 第一阶段移动距离
+    let stage1Time = random(500, 1000);  // 原本用来做第一段 gesture 的时长
 
     let dxTotal = x2 - x1;
     let dyTotal = y2 - y1;
     let totalDist = Math.sqrt(dxTotal * dxTotal + dyTotal * dyTotal);
 
-    if (totalDist > stage1Dist) {
-        // 计算第一阶段占比
-        let ratio1 = stage1Dist / totalDist;
+    // 准备一个“最终的全部插值点”数组 (第一阶段 + 第二阶段)
+    let allPoints = [];
 
-        // 第一阶段目标点
+    // =========== 1) 若总距离足够大，则先构造“第一阶段”插值点 ===========
+    if (totalDist > stage1Dist) {
+        let ratio1 = stage1Dist / totalDist;
         let x1_stage1 = x1 + dxTotal * ratio1;
         let y1_stage1 = y1 + dyTotal * ratio1;
 
-        // 执行第一阶段手势 (只需简单两点线性即可)
-        gesture(stage1Time, [
+        // 【改动1】不再单独 gesture()，而是把这段两点加入 allPoints
+        // 这里仅简单地放2个点，也可以用 bezierCurve() 生成更多插值。
+        // 并注意后面真正 gesture() 时，会对插值再平滑。
+        let stage1Points = [
             [x1, y1],
-            [x1_stage1, y1_stage1]
-        ]);
-        // 暂停少许时间，进一步规避长按检测
-        sleep(random(50, 150));
+            [x1_stage1, y1_stage1],
+        ];
+        allPoints = allPoints.concat(stage1Points);
 
-        // 将剩余距离变为“第二阶段”的新起点
+        // 更新起点为“第一阶段结束”位置
         x1 = x1_stage1;
         y1 = y1_stage1;
 
@@ -337,8 +335,7 @@ function curveSwipe(x1, y1, x2, y2, duration) {
         totalDist = Math.sqrt(dxTotal * dxTotal + dyTotal * dyTotal);
     }
 
-    // =========== 1) 保证最小移动距离，避免滑动过短 ===========
-
+    // =========== 2) 保证最小移动距离，避免滑动过短 ===========
     let minDist = 120;
     if (totalDist < minDist) {
         let offset = minDist - totalDist;
@@ -351,8 +348,7 @@ function curveSwipe(x1, y1, x2, y2, duration) {
         totalDist = Math.sqrt(dxTotal * dxTotal + dyTotal * dyTotal);
     }
 
-    // =========== 2) 若未指定或传入duration=0，则随机一个合理时长 ===========
-
+    // =========== 3) 若未指定或传入duration=0，则随机一个合理时长 ===========
     if (!duration || duration <= 0) {
         let base = Math.floor(totalDist * 1.2);
         duration = random(base, base + 600);
@@ -364,27 +360,20 @@ function curveSwipe(x1, y1, x2, y2, duration) {
         if (duration < 300) duration = 300;
     }
 
-    // =========== 3) 多段随机中点(二次贝塞尔)构造弧形轨迹 ===========
-
+    // =========== 4) 多段随机中点(二次贝塞尔)构造剩余弧形轨迹 ===========
     let pointCountPerSegment = 15;   // 每段插值点数量
     let segmentCount = random(2, 4); // 分段数量(2~4随机)
-    let allPoints = [];
 
     let currStartX = x1;
     let currStartY = y1;
-    let dx = x2 - x1;
-    let dy = y2 - y1;
-
     for (let s = 0; s < segmentCount; s++) {
-        let endX, endY;
-        if (s === segmentCount - 1) {
-            endX = x2;
-            endY = y2;
-        } else {
-            let ratio = (s + 1) / segmentCount;
-            endX = x1 + dx * ratio + random(-50, 50);
-            endY = y1 + dy * ratio + random(-50, 50);
-        }
+        let ratio = (s + 1) / segmentCount;
+        let endX = (s === segmentCount - 1)
+            ? x2
+            : (x1 + dxTotal * ratio + random(-50, 50));
+        let endY = (s === segmentCount - 1)
+            ? y2
+            : (y1 + dyTotal * ratio + random(-50, 50));
 
         let ctrlX = (currStartX + endX) / 2 + random(-100, 100);
         let ctrlY = (currStartY + endY) / 2 + random(-100, 100);
@@ -396,19 +385,22 @@ function curveSwipe(x1, y1, x2, y2, duration) {
             pointCountPerSegment
         );
 
+        // 拼接时，避免前后段重复第一个点
         if (s > 0 && segmentPoints.length > 0) {
             segmentPoints.shift();
         }
-        allPoints = allPoints.concat(segmentPoints);
 
+        allPoints = allPoints.concat(segmentPoints);
         currStartX = endX;
         currStartY = endY;
     }
 
-    // =========== 4) 调用 gesture() 执行第二阶段曲线滑动 ===========
-
+    // =========== 5) 一次性手势执行整段滑动 ===========
+    // 【改动2】直接统一 gesture()，不再区分第一阶段 / 第二阶段
     gesture(duration, allPoints);
+    // 不再有任何 sleep(...)，确保整段是连贯的单次滑动
 }
+
 
 /**
  * @desc 生成二次贝塞尔曲线插值点
