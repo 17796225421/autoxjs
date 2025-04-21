@@ -185,7 +185,7 @@ function collectScrollableChildrenKey(uiObjectFn,
         }
 
         /* 3) 底部判定 —— 快照比对 */
-        const currSnapshot = snapshotArr.join("-");
+        let currSnapshot = snapshotArr.join("-");
         if (currSnapshot === lastSnapshot) {
             log("【collect2.0】内容无变化，可能滚到底");
             break;
@@ -399,10 +399,20 @@ function curveSwipe(x1, y1, x2, y2, duration) {
         currStartY = endY;
     }
 
-    // =========== 5) 一次性手势执行整段滑动 ===========
-    // 【改动2】直接统一 gesture()，不再区分第一阶段 / 第二阶段
+    // =========== 【新增】5) 在真正 gesture 前，对 allPoints 坐标做兜底修正 =============
+    let w = device.width;
+    let h = device.height;
+    for (let i = 0; i < allPoints.length; i++) {
+        let px = allPoints[i][0];
+        let py = allPoints[i][1];
+        // 确保 x,y 不低于 0，也不超过屏幕最大范围
+        px = Math.max(0, Math.min(px, w - 1));
+        py = Math.max(0, Math.min(py, h - 1));
+        allPoints[i] = [px, py];
+    }
+
+    // =========== 6) 一次性手势执行整段滑动 ===========
     gesture(duration, allPoints);
-    // 不再有任何 sleep(...)，确保整段是连贯的单次滑动
 }
 
 

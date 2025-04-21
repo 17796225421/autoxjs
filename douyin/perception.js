@@ -184,9 +184,8 @@ function collectCommentInfo() {
     safeClick(descContains("评论区").className("android.widget.ImageView").findOnce(0), "放大评论区");
 
     let commentListViewFn = () => className("androidx.recyclerview.widget.RecyclerView").visibleToUser().findOnce(0);
-    let commentListView = commentListViewFn();
 
-    let offsetTable = buildOffsetTable(commentListViewFn, 20);
+    let offsetTable = buildOffsetTable(commentListViewFn, 10);
     let commentKeyList = collectScrollableChildrenKey(
         commentListViewFn,
         node => {
@@ -197,7 +196,7 @@ function collectCommentInfo() {
             }
         },
         null,
-        10
+        5
     );
     let comments = [];
     if (commentKeyList) {
@@ -221,10 +220,10 @@ function collectCommentInfo() {
                 }
             }
 
-            let titleNode = childNode.findOnce(id("title"));
+            let titleNode = childNode.findOne(id("title"));
             let username = titleNode ? titleNode.text() : "未知";
     
-            let contentNode = childNode.findOnce(id("content"));
+            let contentNode = childNode.findOne(id("content"));
             let content = contentNode ? contentNode.text() : "";
     
             if (content) {
