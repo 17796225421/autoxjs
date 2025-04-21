@@ -229,39 +229,43 @@ function getNodeUniqueId(node) {
 }
 
 /**
- * 单次滚动一个uiObject容器，高度为uiObject的自身高度。
+ * 单次滚动一个 uiObject 容器，分两次“半程”滚动，避免越过边界。
  * @param {UiObject} uiObject - 可滚动的容器控件
  * @param {string} direction - 滚动方向 ("up"|"down")
- * @param {number} duration - 滚动时长（毫秒）
+ * @param {number} duration - 单次滚动时长（毫秒）
  */
 function scrollOneStep(uiObject, direction, duration) {
     direction = direction || "up";
     duration = duration || 2000;
     if (!uiObject || !uiObject.scrollable()) {
-        log("scrollOneStep: 无效或不可滚动的uiObject");
+        log("scrollOneStep: 无效或不可滚动的 uiObject");
         return false;
     }
 
     let bounds = uiObject.bounds();
-    let startX = (bounds.left + bounds.right) / 2;
-    let startY, endY;
+    let containerHeight = bounds.height();
+    // 例如：把一次大滚动拆成两次“分步滚动”（可自行调整为 0.3 ~ 0.5）
+    let halfDistance = Math.floor(containerHeight * 0.4);
 
+    // 根据滚动方向设置符号
     if (direction === "up") {
-        startY = bounds.bottom - 10;
-        endY = bounds.top + 10;
-    } else if (direction === "down") {
-        startY = bounds.top + 10;
-        endY = bounds.bottom - 10;
-    } else {
-        log("scrollOneStep: 无效的direction参数");
+        halfDistance = -halfDistance;
+    } else if (direction !== "down") {
+        log("scrollOneStep: 无效的 direction 参数，只能是 'up' 或 'down'");
         return false;
     }
 
-    swipe(startX, startY, startX, endY, duration);
-    sleep(500);  // 稍等内容加载
+    // 第 1 段滚动
+    swipeInScrollableNode(uiObject, halfDistance, duration, 500);
+    // 第 2 段滚动
+    swipeInScrollableNode(uiObject, halfDistance, duration, 500);
+
+    // 每滚动完成一整步，可适当等待后台数据加载
+    sleep(500);
+
+    // 返回 true 表示执行完成
     return true;
 }
-
 /**
  * @desc 专门用于模拟人工真实观看短视频的上滑手势
  *       随机化滑动轨迹、速度、起止点，更加真实
@@ -494,6 +498,8 @@ function buildOffsetTable(uiObjectFn, capacity, direction) {
         for (let i = 0; i < children.length; i++) {
             let node = children[i];
             let key = serializeNodeForOffset(node);
+            log(node);
+            log(key);
             if (offsetTable.hasOwnProperty(key)) continue; // 去重
 
             if (direction === "up") {
@@ -513,7 +519,7 @@ function buildOffsetTable(uiObjectFn, capacity, direction) {
             if (Object.keys(offsetTable).length >= capacity) break;
         }
 
-        const total = Object.keys(offsetTable).length;
+        let total = Object.keys(offsetTable).length;
         if (total === oldCount) {
             log("【buildOffsetTable】本轮无新增节点，提前停止");
             break;
@@ -659,6 +665,7 @@ function serializeNodeForOffset(node) {
     let collectedArr = gatherAllTextAndDesc(node);      // ["T:09:30", "D:点击抢购" ...]
     let bigStr = collectedArr.join("|");
 
+    return bigStr;
     /* ---------- 2. 过滤阿拉伯数字 ---------- */
     // 同时去掉半角 0‑9 与全角 ０‑９；保留其它符号/中文/字母
     let noDigitStr = bigStr.replace(/[\d\uFF10-\uFF19]/g, "");

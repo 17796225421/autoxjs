@@ -23,14 +23,14 @@ let { findTextByOcr } = require("./utils/ocr.js");
 function collectInfo() {
     log("【Perception】整合感知数据...");
 
-    while (true) {
-        if (checkValid()) {
-            log("校验视频成功");
-            break;
-        } else {
-            swipeUpVideoNatural();
-        }
-    }
+    // while (true) {
+    //     if (checkValid()) {
+    //         log("校验视频成功");
+    //         break;
+    //     } else {
+    //         swipeUpVideoNatural();
+    //     }
+    // }
 
     let chatNameList = collectChatNameList();
     let perceptionData = {
@@ -63,6 +63,7 @@ function checkValid() {
  * @property {string} desc - 视频的描述信息
  */
 function collectVideoInfo() {
+    return {};
     log("【Perception】收集视频信息...");
     let descElement = id("desc").findOnce();
     let desc = descElement ? descElement.text() : ""
@@ -84,6 +85,7 @@ function collectVideoInfo() {
  * @returns {Comment|null} 首条评论的完整信息（含回复），若无则返回 null
  */
 function collectFirstComment() {
+    return {};
     log("【Perception】收集首条评论及回复...");
 
     // 点击进入评论区
@@ -157,6 +159,9 @@ function collectFirstComment() {
     let firstComment = { username, content, replies };
     log("【Perception】首条评论信息：" + JSON.stringify(firstComment));
 
+    
+    safeClick(descContains("收起")[0], "收起");
+
     back(); // 返回视频界面
     return firstComment;
 }
@@ -173,31 +178,68 @@ function collectFirstComment() {
  */
 function collectCommentInfo() {
     log("【Perception】收集评论列表...");
+
     // 点击进入评论区
     safeClick(descContains("评论").visibleToUser().findOnce(0), "评论");
-    safeClick(descContains("评论区").className("android.widget.ImageView").findOnce(), "放大评论区");
+    safeClick(descContains("评论区").className("android.widget.ImageView").findOnce(0), "放大评论区");
 
-    let commentListView = className("androidx.recyclerview.widget.RecyclerView").visibleToUser().scrollable().findOnce(0);
+    let commentListViewFn = () => className("androidx.recyclerview.widget.RecyclerView").visibleToUser().findOnce(0);
+    let commentListView = commentListViewFn();
 
-    let commentNodes = collectScrollableChildren(
-        commentListView,
-        node => node.id() === "esx"
+    let offsetTable = buildOffsetTable(commentListViewFn, 20);
+    let commentKeyList = collectScrollableChildrenKey(
+        commentListViewFn,
+        node => {
+            if (node.id() === "com.ss.android.ugc.aweme:id/et6") {
+                return true;
+            } else {
+                return false;
+            }
+        },
+        null,
+        10
     );
-
     let comments = [];
-    commentNodes.forEach(node => {
-        let titleNode = node.findOnce(id("title"));
-        let username = titleNode ? titleNode.text() : "未知";
+    if (commentKeyList) {
+        commentKeyList.forEach(commentKey => {
+            log("commentKey:" + commentKey);
+            locateTargetObject(commentKey, commentListViewFn, offsetTable);
 
-        let contentNode = node.findOnce(id("content"));
-        let content = contentNode ? contentNode.text() : "";
+            // 一旦定位完成，可再次从 uiObjectFn() 查找当前屏幕中目标节点
+            let container = commentListViewFn();
+            if (!container) return;
 
-        if (content) {
-            comments.push({ username, content });
-        }
-    });
+            let childNodes = container.children(); // childNodes 是 UiObjectCollection
 
-    return { comments };
+            // ② 遍历寻找目标 childNode
+            let childNode = null;
+            for (let i = 0; i < childNodes.size(); i++) {
+                let candidate = childNodes.get(i);
+                if (serializeNodeForOffset(candidate) === commentKey) {
+                    childNode = candidate;
+                    break;
+                }
+            }
+
+            let titleNode = childNode.findOnce(id("title"));
+            let username = titleNode ? titleNode.text() : "未知";
+    
+            let contentNode = childNode.findOnce(id("content"));
+            let content = contentNode ? contentNode.text() : "";
+    
+            if (content) {
+                comments.push({ username, content });
+            }
+
+        });
+    } else {
+        log("【Perception】未发现回复内容");
+    }
+
+    log("【Perception】评论信息：" + JSON.stringify(comments));
+
+    back(); // 返回视频界面
+    return comments;
 }
 
 /**
