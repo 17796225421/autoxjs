@@ -838,6 +838,121 @@ function getNodeHeight(node) {
     return rect.bottom - rect.top;
 }
 
+/**
+ * 【新增】动态滚动，构建「key -> serializeNodeForOffset」映射表
+ * -------------------------------------------------
+ * @param {function(): UiObject} uiObjectFn - 返回可滚动容器
+ * @param {function(UiObject): string} keyFn - 对每个子节点生成唯一 key
+ * @param {number}   [capacity=50]      - 最大收集数量
+ * @param {string}   [direction="up"]   - 滚动方向("up"|"down")
+ * @returns {Object} 返回形如 { [key: string]: string } 的映射表
+ *
+ * 使用场景（示例）:
+ *   - 重点在于“自动化兼职项目收学费”时批量加私信好友，或
+ *   - “金银珠宝首饰生意”中批量处理聊天列表时，通过 keyFn 来确定“用户名”/“群聊名”/“评论内容” 等。
+ *   - 大模型 Agent + AutoJS 多号多 App 运营，用于“养号+精准引流”。
+ */
+function buildSerializeNodeMap(uiObjectFn, keyFn, capacity, direction) {
+    capacity = capacity || 50;
+    direction = direction || "up";
+
+    const resultMap = {};          // 最终返回的 map: { key -> serializeNodeForOffset(node) }
+    const seenSet = new Set();     // 用于避免重复收集同一个子节点
+    let lastSnapshot = "";         // 用于检测“本页快照”是否与上一页相同(触底判断)
+    let scrollCount = 0;
+    const maxScrollTimes = 20;     // 避免过度滚动造成死循环
+
+    while (Object.keys(resultMap).length < capacity && scrollCount < maxScrollTimes) {
+        let container = uiObjectFn();
+        if (!container) {
+            log("【buildSerializeNodeMap】uiObjectFn() 返回空，提前结束");
+            break;
+        }
+
+        // 1) 获取子节点，若方向=down，则反转遍历顺序
+        let children = container.children() || [];
+        if (direction === "down") {
+            children = children.reverse();
+        }
+
+        // 2) 构建当前“快照”以判断是否到底
+        let snapshotArr = [];
+
+        // 3) 遍历子节点
+        for (let i = 0; i < children.length; i++) {
+            let node = children[i];
+            let nodeId = getNodeUniqueId(node);  // 用已有函数做全局去重判定
+            snapshotArr.push(nodeId);
+
+            if (seenSet.has(nodeId)) {
+                continue; // 已收录过
+            }
+            seenSet.add(nodeId);
+
+            // （A）用 keyFn 生成 key
+            let mapKey = keyFn(node);
+            if (!mapKey) {
+                // 如果 keyFn 返回空字符串，则跳过
+                continue;
+            }
+
+            // （B）用 serializeNodeForOffset(node) 作为映射值
+            let mapValue = serializeNodeForOffset(node);
+            resultMap[mapKey] = mapValue;
+
+            // （C）若收集数量达到上限，则退出
+            if (Object.keys(resultMap).length >= capacity) {
+                log("【buildSerializeNodeMap】达到 capacity，上限收满");
+                break;
+            }
+        }
+
+        // 4) 与上一次快照比对，如无变化则说明到底
+        let currSnapshot = snapshotArr.join("-");
+        if (currSnapshot === lastSnapshot) {
+            log("【buildSerializeNodeMap】本轮无新增节点或页面不变，可能到底");
+            break;
+        }
+        lastSnapshot = currSnapshot;
+
+        // 5) 继续滚动一屏
+        scrollCount++;
+        scrollOneStep(container, direction, 3000);
+        sleep(3000);
+    }
+
+    // ============ 尝试附加收尾收集：再多滚动 2~3 屏，尽量覆盖延迟加载 ============
+    let extraScroll = 2;
+    while (extraScroll-- > 0 && Object.keys(resultMap).length < capacity) {
+        let container = uiObjectFn();
+        if (!container) break;
+        let children = container.children() || [];
+        if (direction === "down") {
+            children = children.reverse();
+        }
+        for (let i = 0; i < children.length; i++) {
+            let node = children[i];
+            let nodeId = getNodeUniqueId(node);
+            if (seenSet.has(nodeId)) continue;
+            seenSet.add(nodeId);
+
+            let mapKey = keyFn(node);
+            if (!mapKey) continue;
+
+            let mapValue = serializeNodeForOffset(node);
+            resultMap[mapKey] = mapValue;
+            if (Object.keys(resultMap).length >= capacity) break;
+        }
+
+        // 再滚动
+        scrollOneStep(container, direction, 3000);
+        sleep(3000);
+    }
+
+    log(`【buildSerializeNodeMap】完成，收集到 ${Object.keys(resultMap).length} / ${capacity} 项`);
+
+    return resultMap;
+}
 
 
 // ============== 导出模块函数 ==============
@@ -850,5 +965,6 @@ module.exports = {
     swipeUpVideoNatural,
     buildOffsetTable,
     locateTargetObject,
-    serializeNodeForOffset
+    serializeNodeForOffset,
+    buildSerializeNodeMap
 };

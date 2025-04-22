@@ -8,12 +8,12 @@
 
 let { safeClick, safeLongPress } = require("./utils/clickUtils.js");
 let { safeInput } = require("./utils/inputUtils.js");
-let { swipeUpScreens } = require("./utils/swipeUtils.js");
+let { buildOffsetTable } = require("./utils/swipeUtils.js");
 let { openApp, closeApp } = require("./utils/app.js");
 let { inputText } = require("./utils/inputUtils.js");
 let { captureAndAnalyze } = require("./utils/llm.js");
 let { sendDirectMessage } = require("./utils/smsService.js");
-let { swipeUpFraction } = require('./utils/swipeUtils.js');
+let { swipeUpVideoNatural,buildSerializeNodeMap } = require('./utils/swipeUtils.js');
 
 const actionMap = {
     点赞: doLike,
@@ -87,32 +87,87 @@ function dorecommend(参数) {
     }
 }
 
+function doReplyFirstComment(参数) {
+    let 是否回复评论 = 参数.是否回复评论;
+    let 回复内容 = 参数.回复内容;
+    let 评论是否赞 = 参数.评论是否赞;
+    let 评论是否踩 = 参数.评论是否踩;
+    if (是否回复评论) {
+        safeClick(text("回复").findOnce(0), "回复");
+        safeInput(className("android.widget.EditText").findOnce(0), 回复内容, "评论内容");
+        safeClick(text("发送").findOnce(0), "发送");
+    }
+    if(评论是否赞){
+        safeClick(descContains("赞").descContains(",未选中").findOnce(0), "赞");
+    }
+    if(评论是否踩){
+        safeClick(descContains("踩").descContains(",未选中").findOnce(0), "踩"); 
+    }
+}
+
 function doComment(参数) {
     let 是否评论 = 参数.是否评论;
     let 评论内容 = 参数.评论内容;
-    let 是否表情 = 参数.是否表情;
-    let 评论是否点赞 = 参数.评论是否点赞;
-    let 评论是否不喜欢 = 参数.评论是否不喜欢;
-    // if (是否评论) {
-    //     safeClick(descContains("分享").findOnce(), "分享");
-    //     safeClick(text("推荐").findOnce(0).parent().parent(), "推荐");
-    // }
-}
-
-function doReplyFirstComment(参数) {
-    let 是否回复评论 = 参数.是否回复评论;
-    let 回复评论内容 = 参数.回复评论内容;
-    let 回复内容 = 参数.回复内容;
-    let 是否表情 = 参数.是否表情;
-    // if (是否回复评论) {
-    //     safeClick(descContains("分享").findOnce(), "分享");
-    //     safeClick(text("推荐").findOnce(0).parent().parent(), "推荐");
-    // }
+    if (是否评论) {
+        safeInput(className("android.widget.EditText").findOnce(0), 评论内容, "评论内容");
+        safeClick(text("发送").findOnce(0), "发送");
+    }
 }
 
 function doSendMessage(参数) {
     let 私信名 = 参数.私信名;
     let 发送内容 = 参数.发送内容;
+
+    let chatListFn = () => {
+        let lists = className("androidx.recyclerview.widget.RecyclerView").find();
+        if (!lists || lists.size() === 0) return null;
+        return lists.get(lists.size() - 1);
+    };
+
+    let offsetTable = buildOffsetTable(chatListFn, 50, "up");
+
+    let serializeNodeMap = buildSerializeNodeMap(
+        chatListFn,
+        (child) => {
+            let nameTxt = child.text() || child.desc();
+            if (nameTxt) {
+                return nameTxt.trim();
+            }
+            return ""; // 没拿到就返回空串
+        },
+        50,  
+        "up" 
+    );
+
+    if (!serializeNodeMap.hasOwnProperty(私信名)) {
+        log("【doSendMessage】未在列表中找到私信名：" + 私信名);
+        return;
+    }
+
+    let offsetTableKey = serializeNodeMap[私信名];
+
+    locateTargetObject(offsetTableKey, chatListFn, offsetTable, "up");
+
+    // 一旦定位完成，可再次从 uiObjectFn() 查找当前屏幕中目标节点
+    let container = chatListFn();
+    if (!container) return;
+
+    let childNodes = container.children(); // childNodes 是 UiObjectCollection
+
+    // ② 遍历寻找目标 childNode
+    let childNode = null;
+    for (let i = 0; i < childNodes.size(); i++) {
+        let candidate = childNodes.get(i);
+        log("serializeNodeForOffset(candidate):" + serializeNodeForOffset(candidate));
+        if (serializeNodeForOffset(candidate) === offsetTableKey) {
+            childNode = candidate;
+            break;
+        }
+    }
+
+    safeClick(childNode, "单聊");
+    safeInput(className("android.widget.EditText").findOnce(0), 发送内容, "发送内容");
+    safeClick(text("我").findOnce(0), "发送");
 }
 
 function doGroupMessage(参数) {
@@ -126,10 +181,7 @@ function doWatchVideos(参数) {
         let 观看时长秒 = video.观看时长秒;
         let 是否暂停 = video.是否暂停;
 
-        let 随机滑动比例 = (Math.random() * (0.7 - 0.2) + 0.2).toFixed(2);
-        let 随机滑动时长 = Math.floor(Math.random() * (800 - 500) + 500);
-        swipeUpFraction(随机滑动比例, 随机滑动时长);
-        log(`随机向上滑动${随机滑动比例}屏，时长${随机滑动时长}ms`);
+        swipeUpVideoNatural();
 
         if (是否暂停) {
             let 随机暂停坐标 = {
