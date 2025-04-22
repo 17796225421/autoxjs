@@ -32,7 +32,18 @@ function collectInfo() {
     //     }
     // }
 
-    let chatNameList = collectChatNameList();
+    // let chatNameList = collectChatNameList();
+    let chatNameList = ['小熙的粉丝群',
+        '大师兄成本报价直播装机只赚装机费1群',
+        '群952258',
+        '萝卜开会',
+        ' (114)',
+        '猫崽的粉丝群',
+        '不可以涩涩',
+        '测试',
+        '梓念粉丝1群',
+        '去户外原地旋转喷屎',
+        '暂时没有更多了'];
     let perceptionData = {
         videoInfo: collectVideoInfo(),
         firstComment: collectFirstComment(),
@@ -159,7 +170,7 @@ function collectFirstComment() {
     let firstComment = { username, content, replies };
     log("【Perception】首条评论信息：" + JSON.stringify(firstComment));
 
-    
+
     safeClick(descContains("收起")[0], "收起");
 
     back(); // 返回视频界面
@@ -177,6 +188,7 @@ function collectFirstComment() {
  * @property {string} content - 评论内容
  */
 function collectCommentInfo() {
+    return null;
     log("【Perception】收集评论列表...");
 
     // 点击进入评论区
@@ -222,10 +234,10 @@ function collectCommentInfo() {
 
             let titleNode = childNode.findOne(id("title"));
             let username = titleNode ? titleNode.text() : "未知";
-    
+
             let contentNode = childNode.findOne(id("content"));
             let content = contentNode ? contentNode.text() : "";
-    
+
             if (content) {
                 comments.push({ username, content });
             }
@@ -247,11 +259,10 @@ function collectCommentInfo() {
  * @property {Chat[]} chats - 单聊列表
  *
  * @typedef {Object} Chat
- * @property {string} title - 消息标题
  * @property {Message[]} messages - 消息内容列表
  *
  * @typedef {Object} Message
- * @property {boolean} isMe - 是否为本人发送（true为自己发送，false为对方发送）
+ * @property {string} username - 用户名
  * @property {string} content - 消息文本内容
  */
 function collectChatInfo(chatNameList) {
@@ -259,50 +270,222 @@ function collectChatInfo(chatNameList) {
     safeClick(text("消息").findOnce(), "消息Tab");
 
     let chats = [];
-    let chatList = className("android.recyclerview.widget.RecyclerView").findOnce().children();
+    let chatListFn = () => className("androidx.recyclerview.widget.RecyclerView").find().get(className("androidx.recyclerview.widget.RecyclerView").find().size() - 1);
 
-    chatList = collectScrollableChildren(
-        chatList,
+    let offsetTable = buildOffsetTable(chatListFn);
+    let chatKeyList = collectScrollableChildrenKey(
+        chatListFn,
         node => {
-            let titleNode = node.findOnce(id("tv_title"));
+            let titleNode = node.findOne(id("tv_title"));
             if (titleNode) {
                 let t = titleNode.text();
-                return !chatNameList.includes(t);
+                return !chatNameList.includes(t) && t !== "新关注我的" && t != "互动消息";
             }
             return false;
-        }
+        },
+        node => {
+            return node.findOne(text("暂时没有更多了")) !== null
+        },
     );
 
-    chatList.forEach(node => {
-        let titleNode = node.findOnce(id("tv_title"));
-        let title = titleNode ? titleNode.text() : "未知";
+    chatKeyList.forEach(chatKey => {
 
-        // 打开单聊
-        safeClick(node, "聊天框");
+        log("chatKey:" + chatKey);
+        locateTargetObject(chatKey, chatListFn, offsetTable);
 
-        let commentListView = className("androidx.recyclerview.widget.RecyclerView").visibleToUser().scrollable().findOnce(0);
+        // 一旦定位完成，可再次从 uiObjectFn() 查找当前屏幕中目标节点
+        let container = chatListFn();
+        if (!container) return;
+
+        let childNodes = container.children(); // childNodes 是 UiObjectCollection
+
+        // ② 遍历寻找目标 childNode
+        let childNode = null;
+        for (let i = 0; i < childNodes.size(); i++) {
+            let candidate = childNodes.get(i);
+            if (serializeNodeForOffset(candidate) === chatKey) {
+                childNode = candidate;
+                break;
+            }
+        }
+
+
+        safeClick(childNode, "会话框");
+
+
+
+        let messageListFn = () => className("androidx.recyclerview.widget.RecyclerView").visibleToUser();
+        let messageOffsetTable = buildOffsetTable(messageListFn, null, "down");
+        let messageKeyList = collectScrollableChildrenKey(
+            messageListFn,
+            null,
+            null,
+            null,
+            "down"
+        );
+
         let messages = [];
 
-        let messageNodes = collectScrollableChildren(commentListView, item => true);
-        let isMe = true;
-        messageNodes.forEach(msg => {
-            let senderNode = msg.findOnce(id("message_author"));
-            let senderText = senderNode ? senderNode.text() : "";
+        messageKeyList.forEach(messageKey => {
 
-            // 判断是否自己发送
-            if (senderText && senderText.includes("我")) {
-                isMe = true;
-            } else {
-                isMe = false;
+            log("messageKey:" + messageKey);
+            locateTargetObject(messageKey, messageListFn, messageOffsetTable);
+
+            // 一旦定位完成，可再次从 uiObjectFn() 查找当前屏幕中目标节点
+            let container = messageListFn();
+            if (!container) return;
+
+            let childNodes = container.children(); // childNodes 是 UiObjectCollection
+
+            // ② 遍历寻找目标 childNode
+            let childNode = null;
+            for (let i = 0; i < childNodes.size(); i++) {
+                let candidate = childNodes.get(i);
+                if (serializeNodeForOffset(candidate) === messageKey) {
+                    childNode = candidate;
+                    break;
+                }
             }
+            let username;
+            let text;
+            let textNode = childNode.findOne(id("content_layout"));
+            if (textNode) {
+                text = textNode.text();
+            }
+            let userNode = childNode.findOne(descContains("的头像"));
+            if (userNode) {
+                username = userNode.desc();
+            }
+            messages.push({ username, text });
 
-            let contentNode = msg.findOnce(id("message_content"));
-            let content = contentNode ? contentNode.text() : "";
-
-            messages.push({ isMe, content });
         });
+        messages = messages.reverse();
+        let preName;
+        for (let i = 0; i < messages.size(); i++) {
+            if (messages[i].username === null) {
+                messages[i].username = preName;
+            } else {
+                preName = messages[i].username;
+            }
+        }
+        chats.push({ messages });
+        back();
+    });
 
-        chats.push({ title, messages });
+    return { chats };
+}
+
+/**
+ * 群聊信息结构体
+ * @typedef {Object} GroupChatInfo
+ * @property {GroupChat[]} groupChats - 群聊列表
+ *
+ * @typedef {Object} groupChat
+ * @property {Message[]} messages - 消息内容列表
+ *
+ * @typedef {Object} Message
+ * @property {string} username - 用户名
+ * @property {string} content - 消息文本内容
+ */
+function collectChatInfo(chatNameList) {
+    log("【Perception】收集群信息...");
+    safeClick(text("消息").findOnce(), "消息Tab");
+
+    let chats = [];
+    let chatListFn = () => className("androidx.recyclerview.widget.RecyclerView").find().get(className("androidx.recyclerview.widget.RecyclerView").find().size() - 1);
+
+    let offsetTable = buildOffsetTable(chatListFn);
+    let chatKeyList = collectScrollableChildrenKey(
+        chatListFn,
+        node => {
+            let titleNode = node.findOne(id("tv_title"));
+            if (titleNode) {
+                let t = titleNode.text();
+                return chatNameList.includes(t);
+            }
+            return false;
+        },
+        node => {
+            return node.findOne(text("暂时没有更多了")) !== null
+        },
+    );
+
+    chatKeyList.forEach(chatKey => {
+        log("chatKey:" + chatKey);
+        locateTargetObject(chatKey, chatListFn, offsetTable);
+
+        // 一旦定位完成，可再次从 uiObjectFn() 查找当前屏幕中目标节点
+        let container = chatListFn();
+        if (!container) return;
+
+        let childNodes = container.children(); // childNodes 是 UiObjectCollection
+
+        // ② 遍历寻找目标 childNode
+        let childNode = null;
+        for (let i = 0; i < childNodes.size(); i++) {
+            let candidate = childNodes.get(i);
+            if (serializeNodeForOffset(candidate) === chatKey) {
+                childNode = candidate;
+                break;
+            }
+        }
+        safeClick(childNode, "会话框");
+
+        let messageListFn = () => className("androidx.recyclerview.widget.RecyclerView").visibleToUser();
+        let messageOffsetTable = buildOffsetTable(messageListFn, null, "down");
+        let messageKeyList = collectScrollableChildrenKey(
+            messageListFn,
+            null,
+            null,
+            null,
+            "down"
+        );
+
+        let messages = [];
+
+        messageKeyList.forEach(messageKey => {
+
+            log("messageKey:" + messageKey);
+            locateTargetObject(messageKey, messageListFn, messageOffsetTable);
+
+            // 一旦定位完成，可再次从 uiObjectFn() 查找当前屏幕中目标节点
+            let container = messageListFn();
+            if (!container) return;
+
+            let childNodes = container.children(); // childNodes 是 UiObjectCollection
+
+            // ② 遍历寻找目标 childNode
+            let childNode = null;
+            for (let i = 0; i < childNodes.size(); i++) {
+                let candidate = childNodes.get(i);
+                if (serializeNodeForOffset(candidate) === messageKey) {
+                    childNode = candidate;
+                    break;
+                }
+            }
+            let username;
+            let text;
+            let textNode = childNode.findOne(id("content_layout"));
+            if (textNode) {
+                text = textNode.text();
+            }
+            let userNode = childNode.findOne(descContains("的头像"));
+            if (userNode) {
+                username = userNode.desc();
+            }
+            messages.push({ username, text });
+
+        });
+        messages = messages.reverse();
+        let preName;
+        for (let i = 0; i < messages.size(); i++) {
+            if (messages[i].username === null) {
+                messages[i].username = preName;
+            } else {
+                preName = messages[i].username;
+            }
+        }
+        chats.push({ messages });
         back();
     });
 
@@ -348,7 +531,6 @@ function collectGroupChatInfo(chatNameList) {
 }
 
 function collectChatNameList() {
-    return "1";
     log("【Perception】收集群聊名称...");
     safeClick(text("消息").findOnce(), "消息Tab");
     safeClick(desc("更多面板").findOnce(), "更多面板");

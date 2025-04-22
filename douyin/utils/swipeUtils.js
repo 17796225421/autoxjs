@@ -65,52 +65,96 @@ function swipeUpFraction(fraction, duration) {
 }
 
 /**
- * 动态滚动并收集满足过滤函数的所有不重复子节点
- * @param {function(): UiObject} uiObjectFn - 可滚动的容器控件
- * @param {function(UiObject): boolean} filterFn - 自定义过滤函数，决定是否收集某节点
- * @param {number} maxScrolls - 最大滚动次数
- * @param {string} direction - 滚动方向 ("up"|"down")
+ * 【强化版】动态滚动 + 收集符合条件的直接子节点
+ * -----------------------------------------------
+ * 1) 终止条件（满足任一即刻退出）
+ *    A. stopFn(child) === true                 // 用户自定义：遇到目标即可停
+ *    B. collectedNodes.length >= capacity      // 收集已满
+ *    C. 本页快照 === 上页快照                  // 内容无变化，说明到底
+ *
+ * 2) 参数说明
+ *    @param {function(): UiObject} uiObjectFn  - 返回可滚动容器
+ *    @param {function(UiObject): boolean} filterFn - 过滤函数：决定是否保存该节点
+ *    @param {function(UiObject): boolean} [stopFn] - 停止函数：遇到返回 true 即刻终止
+ *    @param {number}   [capacity=20]           - 最大收集数量
+ *    @param {string}   [direction="up"]        - 滚动方向
  * @returns {UiObject[]} - 满足条件的不重复直接子节点列表
+ *
+ * 3) 应用场景
+ *    - 自动化兼职项目“养号+引流”批量收集 UI 入口
+ *    - 金银珠宝首饰类 App 自动化浏览、筛选、留资
+ *    - 大模型 Agent + AutoJS 多号多 App 运营的核心滚动感知能力
  */
-function collectScrollableChildren(uiObjectFn, filterFn, maxScrolls, direction) {
-    maxScrolls = maxScrolls || 5;
+function collectScrollableChildren(uiObjectFn,
+    filterFn,
+    stopFn,
+    capacity,
+    direction) {
+
+    /* ---------- 默认值 ---------- */
+    capacity = capacity || 20;
     direction = direction || "up";
+    stopFn = stopFn || (() => false);
 
-    let collectedSet = new Set();
-    let collectedNodes = [];
-    let lastPageSnapshot = "";
+    /* ---------- 状态变量 ---------- */
+    const collectedSet = new Set();   // 去重
+    const collectedNodes = [];          // 结果
+    let lastSnapshot = "";          // 用于检测“到底”
+    let pageIndex = 0;           // 仅做日志
 
-    for (let scrollCount = 0; scrollCount <= maxScrolls; scrollCount++) {
-        // 遍历uiObject的直接子节点
-        let currentNodes = uiObjectFn().children().filter(child => filterFn(child));
+    /* ---------- 主循环 ---------- */
+    while (true) {
 
-        log("【collectScrollableChildren】当前页的有效节点数量: " + currentNodes.length);
+        /* 1) 取容器 & 子节点 */
+        let children = uiObjectFn().children();
 
-        currentNodes.forEach(node => {
+        /* 2) 遍历直接子节点 */
+        let snapshotArr = [];   // 本页快照（无重复）
+        for (let i = 0; i < children.length; i++) {
+            let node = children[i];
             let nodeId = getNodeUniqueId(node);
-            if (!collectedSet.has(nodeId)) {
-                collectedSet.add(nodeId);
-                collectedNodes.push(node);
+
+            snapshotArr.push(nodeId);           // 构建快照
+
+            /* --- 去重 --- */
+            if (collectedSet.has(nodeId)) continue;
+            collectedSet.add(nodeId);
+
+            /* --- stopFn 判停 --- */
+            if (stopFn(node)) {
+                log("【collect2.0】stopFn 触发，提前结束");
+                return collectedNodes;          // 已收集的直接返回
             }
-        });
 
-        // 判断是否滚动到底（两次页面内容完全相同说明到底）
-        let currentPageSnapshot = currentNodes.map(node => getNodeUniqueId(node)).join("-");
-        if (currentPageSnapshot === lastPageSnapshot) {
-            log("collectScrollableChildren: 滚动到底部，内容无变化，终止");
+            /* --- filterFn 判收 --- */
+            if (filterFn(node)) {
+                collectedNodes.push(node);
+                if (collectedNodes.length >= capacity) {
+                    log("【collect2.0】达到 capacity，上限收满");
+                    return collectedNodes;
+                }
+            }
+        }
+
+        /* 3) 底部判定 —— 快照比对 */
+        let currSnapshot = snapshotArr.join("-");
+        if (currSnapshot === lastSnapshot) {
+            log("【collect2.0】内容无变化，可能滚到底");
             break;
-        } else {
-            lastPageSnapshot = currentPageSnapshot;
         }
+        lastSnapshot = currSnapshot;
 
-        if (scrollCount < maxScrolls) {
-            scrollOneStep(uiObjectFn(), direction, 3000);
-            sleep(5000);
-        }
+        /* 4) 继续滚动 */
+        pageIndex++;
+        scrollOneStep(uiObjectFn(), direction, 3000);
+        sleep(4000);   // 视平台加载速度而定
     }
 
+    /* ---------- 结束 ---------- */
+    log(`【collectScrollableChildren】完毕，共收集 ${collectedNodes.length} / ${capacity}`);
     return collectedNodes;
 }
+
 
 /**
  * 【强化版】动态滚动 + 收集符合条件的直接子节点 Key
@@ -199,7 +243,7 @@ function collectScrollableChildrenKey(uiObjectFn,
     }
 
     /* ---------- 结束 ---------- */
-    log(`【collect2.0】完毕，共收集 ${collectedNodes.length} / ${capacity}`);
+    log(`【collectScrollableChildrenKey】完毕，共收集 ${collectedNodes.length} / ${capacity}`);
     return collectedNodes;
 }
 
@@ -740,7 +784,7 @@ function swipeInScrollableNode(uiObject, deltaPx, duration, rest) {
     const b = uiObject.bounds();
     const height = b.height();
     const maxStep = Math.floor(height * 0.88);   // 每段 ≤88% 容器高
-    const margin = 12;                          // 上下预留的缓冲
+    const margin = 100;                          // 上下预留的缓冲
 
     let remain = deltaPx;
     const sign = remain > 0 ? 1 : -1;
